@@ -22,18 +22,34 @@ def macaronage(*args, **kw):
     @param dbname: database file name of SQLite
     """
     if kw.has_key("dbfile"):
-        conn = sqlite3.connect(kw["dbfile"])
-    elif kw.has_key("conn"):
-        conn = kw["conn"]
+        if kw.get("lazy", False): conn = LazyConnection(kw["dbfile"])
+        else: conn = sqlite3.connect(kw["dbfile"])
+    elif kw.has_key("connection"):
+        conn = kw["connection"]
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
 
-def bake(*args, **kw):
-    """Let's bake the Macaron!!
-
-    Committing the database
-    """
+def bake():
+    """Let's bake the Macaron!! Committing the database."""
     _m.connection["default"].commit()
+
+def rollback(): _m.connection["default"].rollback()
+def db_close(): _m.connection["default"].close()
+
+class LazyConnection(object):
+    """Lazy connection wrapper"""
+    def __init__(self, *args, **kw):
+        self.args = args
+        self.kwargs = kw
+        self._conn = None
+
+    def __getattr__(self, name):
+        self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
+        return getattr(self._conn, name)
+
+    def commit(self): return True
+    def rollback(self): return True
+    def close(self): return True
 
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
@@ -230,6 +246,37 @@ class Model(object):
 
     def __repr__(self):
         return "%s %s" % (self.__class__.__name__, self.get_id())
+
+class MacaronPlugin(object):
+    """Macaron plugin for Bottle web framework
+    This plugin handled Macaron.
+    """
+    name = "macaron"
+    api = 2
+
+    def __init__(self, dbfile=":memory:", autocommit=True):
+        self.dbfile = dbfile
+        self.autocommit = autocommit
+
+    def setup(self, app): pass
+
+    def apply(self, callback, ctx):
+        conf = ctx.config.get("macaron") or {}
+        dbfile = conf.get("dbfile", self.dbfile)
+        autocommit = conf.get("autocommit", self.autocommit)
+
+        def wrapper(*args, **kwargs):
+            macaronage(dbfile=dbfile, lazy=True)
+            try:
+                ret_value = callback(*args, **kwargs)
+                if autocommit: bake()   # commit
+            except sqlite3.IntegrityError, e:
+                rollback()
+                raise HTTPError(500, "Database Error", e)
+            finally:
+                db_close()
+            return ret_value
+        return wrapper
 
 # This is a module global variable '_m' having Macaron object.
 _m = Macaron()
