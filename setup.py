@@ -10,18 +10,17 @@ if sys.version_info < (2, 5):
 import macaron
 
 setup(
-    name                = "macaron",
-    version             = macaron.__version__,
-    description         = "Very simple O/R mapper for SQLite3 in small applications",
-    long_description    = macaron.__doc__,
-    author              = macaron.__author__,
-    author_email        = "macaron@biokids.org",
-    url                 = "http://github.com/nobrin/macaron",
-    py_modules          = ["macaron"],
-    scripts             = ["macaron.py"],
-    license             = "MIT",
-    platforms           = "any",
-    classifiers         = [
+    name             = "macaron",
+    version          = macaron.__version__,
+    description      = "Very simple O/R mapper for SQLite3 in small applications",
+    long_description = macaron.__doc__,
+    author           = macaron.__author__,
+    url              = "http://github.com/nobrin/macaron",
+    py_modules       = ["macaron"],
+    scripts          = ["macaron.py"],
+    license          = "MIT",
+    platforms        = "any",
+    classifiers      = [
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",

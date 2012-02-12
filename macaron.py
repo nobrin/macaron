@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# Project: Macaron
-# Module:  macaron
 """
-Macaron is a very simple object-relation (O/R) mapper for SQLite3 and for small applications.
+Macaron is a very simple object-relational(O/R) mapper for SQLite3 in small applications.
 
-Copyright (c) 2012, Nobuo Okazaki.
-License: MIT
+:Author:
+    Nobuo Okazaki
+
+:License:
+    MIT
 """
 __author__ = "Nobuo Okazaki"
 __version__ = "0.1.dev"
