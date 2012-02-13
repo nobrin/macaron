@@ -1,6 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-Macaron is a very simple object-relational(O/R) mapper for SQLite3 in small applications.
+*Macaron* is a small and simple object-relational mapper (ORM) for SQLite and
+Python. It is distributed as a single file module which has no dependencies
+other than the Python Standard Library.
+
+*Macaron* provides provides easy access methods to SQLite database. And it
+supports Bottle web framework through plugin mechanism.
+
+Example::
+
+    >>> import macaron
+    >>> macaron.macaronage(dbfile="members.db")
+    >>> team = Team.create(name="Houkago Tea Time")
+    >>> team.members.append(first_name="Ritsu", last_name="Tainaka", part="Dr")
+    <Member object 1>
+    >>> mio = team.members.append(first_name="Mio", last_name="Akiyama", part="Ba")
+    >>> print mio
+    <Member 'Mio Akiyama : Ba'>
+    >>> for member in team.members: print member
+    ...
+    <Member 'Ritsu Tainaka : Dr'>
+    <Member 'Mio Akiyama : Ba'>
 """
 __author__ = "Nobuo Okazaki"
 __version__ = "0.1.0-dev"
@@ -9,18 +29,14 @@ __license__ = "MIT"
 import sqlite3
 import re
 
-def macaronage(*args, **kw):
-    """Let's macaronage process
-
-    @type  dbname: string
-    @param dbname: database file name of SQLite
-    """
+def macaronage(dbfile=":memory:", lazy=False, connection=None):
+    """Initializing macaron"""
     conn = None
-    if kw.has_key("dbfile"):
-        if kw.get("lazy", False): conn = LazyConnection(kw["dbfile"])
-        else: conn = sqlite3.connect(kw["dbfile"])
-    elif kw.has_key("connection"):
-        conn = kw["connection"]
+    if connection:
+        conn = connection
+    else:
+        if lazy: conn = LazyConnection(dbfile)
+        else: conn = sqlite3.connect(dbfile)
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
 
@@ -29,7 +45,7 @@ def execute(*args, **kw):
     return _m.connection["default"].cursor().execute(*args, **kw)
 
 def bake():
-    """Let's bake the Macaron!! Committing the database."""
+    """Committing the database."""
     _m.connection["default"].commit()
 
 def rollback(): _m.connection["default"].rollback()
@@ -234,10 +250,12 @@ class Model(object):
 
     @classmethod
     def get(cls, id):
+        """Getting single result by ID"""
         return cls.select_one("%s = ?" % (cls._meta.primary_key.name), [id])
 
     @classmethod
     def select_one(cls, q, values):
+        """Getting single result by WHERE clause"""
         m = cls.select(q, values)
         try: obj = m.next()
         except StopIteration: raise cls.DoesNotFound()
@@ -247,11 +265,13 @@ class Model(object):
 
     @classmethod
     def select(cls, q, values):
+        """Getting QueryResult instance by WHERE clause"""
         sql = "SELECT * FROM %s WHERE %s" % (cls._table_name, q)
         return QueryResult(cls, sql, values)
 
     @classmethod
     def create(cls, **kw):
+        """Creating new record"""
         names = []
         obj = cls(**kw)
         for fld in cls._meta.fields:
@@ -268,6 +288,7 @@ class Model(object):
         return obj
 
     def save(self):
+        """Updating the record"""
         cls = self.__class__
         names = []
         for fld in cls._meta.fields:
@@ -280,11 +301,13 @@ class Model(object):
         cls._meta.conn.cursor().execute(sql, values + [self.get_id()])
 
     def delete(self):
+        """Deleting the record"""
         cls = self.__class__
         sql = "DELETE FROM %s WHERE %s = ?" % (cls._table_name, cls._meta.primary_key.name)
         cls._meta.conn.cursor().execute(sql, [self.get_id()])
 
     def get_id(self):
+        """Getting value of primary key field"""
         return getattr(self, self.__class__._meta.primary_key.name)
 
     def before_create(self): pass
