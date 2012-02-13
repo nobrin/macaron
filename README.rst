@@ -1,41 +1,39 @@
+.. _Python: http://python.org/
+.. _SQLite: http://www.sqlite.org/
+.. _Bottle: http://bottlepy.org/
+
 ====================
- Macaron O/R Mapper
+ Macaron: O/R Mapper
 ====================
 
 Overview
 ========
 
-Very small object-relational(O/R) mapper for SQLite3 in small applications.
+*Macaron* is a small and simple object-relational (O/R) mapper for SQLite_ and Python_. It is distributed as a single file module which has no dependencies other than the `Python Standard Library <http://docs.python.org/library/>`_.
 
-*Macaron* is a single-file O/R mapper and small size(10KB), which provides easy access methods to SQLite.
-And it supports Bottle_ web framework through plugin mechanism.
+*Macaron* provides provides easy access methods to SQLite database. And it supports Bottle_ web framework through plugin mechanism.
 
-For example::
+Example code::
 
+    >>> import macaron
     >>> macaron.macaronage(dbfile="members.db")
-    >>> member = Member.select_one("name=?", ["Azusa Nakano"])
-    >>> print member
-    Member [Azusa Nakano]
-    >>> team = member.belong_to
-    >>> print team
-    Team [Houkago Tea Time]
-    >>> for m in band.members: print m
+    >>> team = Team.create(name="Houkago Tea Time")
+    >>> team.members.append(first_name="Ritsu", last_name="Tainaka", part="Dr")
+    <Member object 1>
+    >>> mio = team.members.append(first_name="Mio", last_name="Akiyama", part="Ba")
+    >>> print mio
+    <Member 'Mio Akiyama : Ba'>
+    >>> for member in team.members: print member
     ...
-    Member [Yui Hirasawa]
-    Member [Mio Akiyama]
-    Member [Tsumugi Kotobuki]
-    Member [Ritsu Tainaka]
-    Member [Azusa Nakano]
+    <Member 'Ritsu Tainaka : Dr'>
+    <Member 'Mio Akiyama : Ba'>
 
-*Macaron* supports **many to one** relationships and reverse reference.
-Many to many relationships have not been supported yet.
+*Macaron* supports **many to one** relationships and reverse reference. Many to many relationships have not been supported yet. To realize simple implementation, *Macaron* does not provide methods for creation of tables.
 
-MacaronPlugin class for *Bottle* micro web-framework is implemented.
+MacaronPlugin class for Bottle_ web framework is implemented.
 
 - Homepage: http://github.com/nobrin/macaron
 - License: MIT (see LICENSE.txt)
-
-.. _Bottle: http://bottlepy.org/
 
 
 Installation and Dependencies
@@ -48,25 +46,6 @@ Installation and Dependencies
     python setup.py
 
 MacaronPlugin is tested on Bottle 0.10.9.
-
-Example
-=======
-
-::
-
-    import macaron
-    
-    macaron.macaronage(dbfile="members.db")
-    team = Team.get(1)
-    Member.create(name="Azusa Nakano", part="Gt.2", team=team.get_id())
-
-To be implemented
------------------
-
-::
-
-    team = Team.get(1)
-    team.append(Member.create(name="Azusa Nakano", part="Gt.2"))
 
 
 Web application
@@ -98,5 +77,13 @@ Example
 Implementation
 --------------
 
-In MacaronPlugin, connection object for sqlite3 is lazy.
-The sqlite3.Connection object is create at call *Macaron* methods. If not called, any connection is created.
+
+MacaronPlugin create lazy connection. So the sqlite3.Connection object is create at call *Macaron* methods. In case of no use the methods in *route*, any connection is created.
+
+License
+==================
+
+Code and documentation are available according to the MIT License:
+
+.. include:: LICENSE
+  :literal:

@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Macaron is a very simple object-relational(O/R) mapper for SQLite3 in small applications.
-
-:Author:
-    Nobuo Okazaki
-
-:License:
-    MIT
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.1.dev"
+__version__ = "0.1.0-dev"
 __license__ = "MIT"
 
 import sqlite3
@@ -21,6 +15,7 @@ def macaronage(*args, **kw):
     @type  dbname: string
     @param dbname: database file name of SQLite
     """
+    conn = None
     if kw.has_key("dbfile"):
         if kw.get("lazy", False): conn = LazyConnection(kw["dbfile"])
         else: conn = sqlite3.connect(kw["dbfile"])
@@ -28,6 +23,10 @@ def macaronage(*args, **kw):
         conn = kw["connection"]
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
+
+def execute(*args, **kw):
+    """Wrapper for connection"""
+    return _m.connection["default"].cursor().execute(*args, **kw)
 
 def bake():
     """Let's bake the Macaron!! Committing the database."""
@@ -130,14 +129,66 @@ class ManyToOne(property):
 class _ManyToOne_Rev(property):
     """The reverse of many to one relationship."""
     def __init__(self, ref, ref_key, rev, rev_fkey):
-        self.ref = ref
-        self.ref_key = ref_key
-        self.rev = rev
-        self.rev_fkey = rev_fkey
+        self.ref = ref              # Reference table (parent)
+        self.ref_key = ref_key      # Key column name of parent
+        self.rev = rev              # Child table (many side)
+        self.rev_fkey = rev_fkey    # Foreign key name of child
 
     def __get__(self, owner, cls):
         self.ref_key = self.ref_key or self.ref._meta.primary_key.name
-        return self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
+        result = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
+        return ManyToOneRevResult(owner, self, result)
+
+class QueryResult(object):
+    def __init__(self, cls, sql, values):
+        self.cls, self.sql, self.values = cls, sql, values
+        self._initialize_cursor()
+
+    def __iter__(self):
+        self._execute()
+        return self
+
+    def _initialize_cursor(self):
+        """Clearing cache and state"""
+        self.cur = None     # cursor
+        self._index = -1    # pointer index
+        self._cache = []    # cache list
+
+    def _execute(self):
+        """Getting and setting a new cursor"""
+        self._initialize_cursor()
+        self.cur = self.cls._meta.conn.cursor().execute(self.sql, self.values)
+
+    def next(self):
+        if not self.cur: self._execute()
+        row = self.cur.fetchone()
+        self._index += 1
+        if not row: raise StopIteration()
+        self._cache.append(self.cls._factory(self.cur, row))
+        return self._cache[-1]
+
+    def __str__(self):
+        objs = self._cache + [obj for obj in self]
+        return str(objs)
+
+    def __getitem__(self, index):
+        if self._index >= 0: return self._cache[0]
+        for obj in self:
+            if self._index >= index: return obj
+
+class ManyToOneRevResult(QueryResult):
+    """Reverse relationship of ManyToOne"""
+    def __init__(self, parent, rel, query_result):
+        q = query_result
+        super(ManyToOneRevResult, self).__init__(q.cls, q.sql, q.values)
+        self.parent = parent
+        self.parent_key = rel.ref_key
+        self.cls_fkey = rel.rev_fkey
+
+    def append(self, *args, **kw):
+        """Append new member"""
+        kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
+        return self.cls.create(*args, **kw)
 
 class MetaModel(type):
     """Meta class for Model class"""
@@ -197,13 +248,7 @@ class Model(object):
     @classmethod
     def select(cls, q, values):
         sql = "SELECT * FROM %s WHERE %s" % (cls._table_name, q)
-        return cls._select(sql, values)
-
-    @classmethod
-    def _select(cls, sqlstr, values):
-        def _(c):
-            for row in c: yield cls._factory(c, row)
-        return _(cls._meta.conn.cursor().execute(sqlstr, values))
+        return QueryResult(cls, sql, values)
 
     @classmethod
     def create(cls, **kw):
@@ -220,6 +265,7 @@ class Model(object):
         cur = cls._meta.conn.cursor().execute(sql, values)
         newobj = cls.get(cur.lastrowid)
         for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
+        return obj
 
     def save(self):
         cls = self.__class__
@@ -245,7 +291,7 @@ class Model(object):
     def before_save(self): pass
 
     def __repr__(self):
-        return "%s %s" % (self.__class__.__name__, self.get_id())
+        return "<%s object %s>" % (self.__class__.__name__, self.get_id())
 
 class MacaronPlugin(object):
     """Macaron plugin for Bottle web framework
