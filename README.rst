@@ -83,7 +83,7 @@ MacaronPlugin create lazy connection. So the sqlite3.Connection object is create
 License
 ==================
 
-Code and documentation are available according to the MIT License:
+Code and documentation are available according to the MIT License.
 
 .. include:: LICENSE
   :literal:
