@@ -23,8 +23,8 @@ Example::
     <Member 'Mio : Ba'>
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.1.0-dev"
-__license__ = "MIT"
+__version__ = "0.1.0"
+__license__ = "MIT License"
 
 import sqlite3
 import re
