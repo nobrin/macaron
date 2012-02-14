@@ -116,6 +116,14 @@ class TestMacaron(unittest.TestCase):
         for idx, m in enumerate(team.members):
             self.assertEqual(str(m), "<Member '%s'>" % nm[idx][3])
 
+    def testOrderBy(self):
+        team = Team.create(name="Houkago Tea Time")
+        for n in self.names:
+            team.members.append(first_name=n[0], last_name=n[1], part=n[2])
+        members = team.members.order_by("last_name")
+        for m in members: print m
+
+
 if __name__ == "__main__":
     if os.path.isfile(DB_FILE): os.unlink(DB_FILE)
     unittest.main()

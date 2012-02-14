@@ -183,7 +183,10 @@ class QueryResult(object):
     def _execute(self):
         """Getting and setting a new cursor"""
         self._initialize_cursor()
-        self.cur = self.cls._meta.conn.cursor().execute(self.sql, self.values)
+        clauses = [self.sql]
+        if self._order: clauses.append("ORDER BY %s" % ", ".join(self._order))
+        print "\n".join(clauses)
+        self.cur = self.cls._meta.conn.cursor().execute("\n".join(clauses), self.values)
 
     def next(self):
         if not self.cur: self._execute()
@@ -204,8 +207,9 @@ class QueryResult(object):
 
     def order_by(self, *args):
         """Adding ORDER BY clause to query"""
-        flds = [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
-        self._order_by = "ORDER BY %s" % ", ".join(flds)
+        order = [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
+#        return self.__class__(self, order_by=order)
+        return QueryResult(self, order_by=order)
 
 class ManyToOneRevResult(QueryResult):
     """Reverse relationship of ManyToOne"""
