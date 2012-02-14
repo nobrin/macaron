@@ -1,0 +1,17 @@
+/*
+ * macaron.css
+ */
+
+@import url("sphinxdoc.css");
+
+body { background-color: #CC9966; }
+div.bodywrapper { margin: 0 0 0 220px; }
+h1 { color: #660000; }
+a { color: #993333; }
+div.sphinxsidebar h3, div.sphinxsidebar h4 { background-color: #3399cc; }
+div.sphinxsidebar {
+	padding-top: 100px; background: url(macaron_logo.png) no-repeat 5px 20px;
+	float: left; margin: 0 0 0 15px;
+}
+div.sphinxsidebar ul { padding: 0 0 0 2px; }
+div.related ul li a { color: #000066; }

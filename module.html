@@ -1,0 +1,151 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The macaron module content &mdash; Macaron v0.1 documentation</title>
+    <link rel="stylesheet" href="_static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.1 documentation" href="index.html" />
+    <link rel="next" title="The Model class" href="class/model.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="class/model.html" title="The Model class"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Tutorial</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="class/model.html"
+                        title="next chapter">The <em>Model</em> class</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/module.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-macaron">
+<span id="the-macaron-module-content"></span><h1>The <em>macaron</em> module content<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix, Windows</p>
+<dl class="function">
+<dt id="macaron.macaronage">
+<tt class="descclassname">macaron.</tt><tt class="descname">macaronage</tt><big>(</big><em>dbfile=':memory:'</em>, <em>lazy=False</em>, <em>connection=None</em><big>)</big><a class="headerlink" href="#macaron.macaronage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializing macaron</p>
+<p>This is called at starting use of Macaron.</p>
+<p>The basic connection parameters are:</p>
+<ul class="simple">
+<li><strong>dbfile</strong> &#8211; The database file name</li>
+<li><strong>lazy</strong> &#8211; Use LazyConnection class</li>
+<li><strong>connection</strong> &#8211; sqlite3.Connection object</li>
+</ul>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.bake">
+<tt class="descclassname">macaron.</tt><tt class="descname">bake</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.bake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Committing the database.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.rollback">
+<tt class="descclassname">macaron.</tt><tt class="descname">rollback</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.rollback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="macaron.execute">
+<tt class="descclassname">macaron.</tt><tt class="descname">execute</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#macaron.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for connection</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.db_close">
+<tt class="descclassname">macaron.</tt><tt class="descname">db_close</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.db_close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="class/model.html" title="The Model class"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             >previous</a> |</li>
+        <li><a href="index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>

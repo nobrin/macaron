@@ -1,0 +1,238 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial &mdash; Macaron v0.1 documentation</title>
+    <link rel="stylesheet" href="_static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.1 documentation" href="index.html" />
+    <link rel="next" title="The macaron module content" href="module.html" />
+    <link rel="prev" title="Macaron: O/R Mapper" href="overview.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="module.html" title="The macaron module content"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="overview.html" title="Macaron: O/R Mapper"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Tutorial</a><ul>
+<li><a class="reference internal" href="#definition-of-models">Definition of models</a></li>
+<li><a class="reference internal" href="#creating-new-records">Creating new records</a></li>
+<li><a class="reference internal" href="#fetching-records-and-updating">Fetching records and updating</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="overview.html"
+                        title="previous chapter">Macaron: O/R Mapper</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="module.html"
+                        title="next chapter">The <em>macaron</em> module content</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/tutorial.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Here is a tutorial for <em>Macaron</em>. <em>Macaron</em> is a simplified ORM, so there are few things you need to learn.</p>
+<div class="section" id="definition-of-models">
+<h2>Definition of models<a class="headerlink" href="#definition-of-models" title="Permalink to this headline">¶</a></h2>
+<p><em>Macaron</em> needs tables in SQLite database. To make it simple, <em>Macaron</em> does not provides methods for creating tables. In this section, table creation SQL and definition is below.</p>
+<p>SQL:</p>
+<div class="highlight-python"><pre>CREATE TABLE team (
+    id      INTEGER PRIMARY KEY,
+    name    TEXT
+);
+
+CREATE TABLE member (
+    id          INTEGER PRIMARY KEY,
+    table_id    INTEGER REFERENCES team (id),
+    first_name  TEXT,
+    last_name   TEXT,
+    part        TEXT
+);</pre>
+</div>
+<p>You need creating tables into <em>members.db</em> file with the SQL.</p>
+<p>Model definition in Python code:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
+
+<span class="k">class</span> <span class="nc">Team</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Definition of Team table&quot;&quot;&quot;</span>
+    <span class="n">_table_name</span> <span class="o">=</span> <span class="s">&quot;team&quot;</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;Team &#39;</span><span class="si">%s</span><span class="s">&#39;&gt;&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+<span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Definition of Member table</span>
+<span class="sd">    team is a class property and accessor for parent &#39;Team&#39; object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_table_name</span> <span class="o">=</span> <span class="s">&quot;member&quot;</span>
+    <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">Team</span><span class="p">,</span> <span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="s">&quot;members&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="creating-new-records">
+<h2>Creating new records<a class="headerlink" href="#creating-new-records" title="Permalink to this headline">¶</a></h2>
+<p>Okay, we have created some tables and defined model classes. Team class is the model related to team table in database and Member class is to member. After that, we will create a new team called &#8220;Houkago Tea Time&#8221; and append starting members.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
+
+<span class="c"># A macaron needs &#39;macaronage&#39; process.</span>
+<span class="c"># The macaronage() initializes db connection with file name.</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="n">dbfile</span><span class="o">=</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
+
+<span class="c"># Create a new team named &#39;Houkago Tea Time&#39;.</span>
+<span class="c"># Model.create() execute INSERT statement.</span>
+<span class="n">new_team</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Houkago Tea Time&quot;</span><span class="p">)</span>
+
+<span class="c"># Append new members to the team.</span>
+<span class="c"># new_team.members is an accessor for Member table.</span>
+<span class="n">member1</span> <span class="o">=</span> <span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Ritsu&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Tainaka&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Dr&quot;</span><span class="p">)</span>
+<span class="n">member2</span> <span class="o">=</span> <span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Mio&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Akiyama&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Ba&quot;</span><span class="p">)</span>
+
+<span class="c"># Yeah, all tasks has been done. Let&#39;s bake the macaron.</span>
+<span class="c"># Commit this changes to database.</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">db_close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Call <strong>macaron.macaronage()</strong> to initialize macaron. This method connect to <strong>members.db</strong> SQLite database file. And a new team will be created with <em>ModelClass</em>.create() method. The <strong>create()</strong> is a class method and is called with key word arguments which consist field name and value pairs. It returns created Team object.</p>
+<p>A new team has come, let&#8217;s join new members to the team. The Team object is into a variable named <em>new_team</em>, you will call new_team.members.append(). The <strong>append()</strong> object method can be used with key word arguments like <strong>create()</strong> method and returns a new created Member object.</p>
+<p>Where the <em>members</em> propery is defined? The property is defined automatically in Member class definition. The <em>team</em> property of Member is set as an instance of <em>ManyToOne</em> and it works as accessor to many to one relationship. The ManyToOne add a property for accessing reverse relationship to Team class. In this case, the property is named <em>members</em>.</p>
+<p>At last, we have created a team with initial members and should commit it. Call <strong>macaron.bake()</strong> which is a very wrapper to call sqlite3.Connection#commit().</p>
+</div>
+<div class="section" id="fetching-records-and-updating">
+<h2>Fetching records and updating<a class="headerlink" href="#fetching-records-and-updating" title="Permalink to this headline">¶</a></h2>
+<p>Now, we have a small database <em>members.db</em>. In this section, we try fetching records.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
+
+<span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="n">dbfile</span><span class="o">=</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
+
+<span class="c"># The simplest way is get() with record ID.</span>
+<span class="n">ritsu</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="c"># &lt;Member &#39;Ritsu Tainaka : Dr&#39;&gt;</span>
+
+<span class="c"># Fetching Team object Ritsu belongs to.</span>
+<span class="n">ourband</span> <span class="o">=</span> <span class="n">ritsu</span><span class="o">.</span><span class="n">team</span>
+<span class="c"># &lt;Team &#39;Houkago Tea Time&#39;&gt;</span>
+
+<span class="c"># And listing members who belongs to the team.</span>
+<span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">ourband</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">members</span>
+<span class="c"># &lt;Member &#39;Ritsu Tainaka : Dr&#39;&gt;</span>
+<span class="c"># &lt;Member &#39;Mio Akiyama : Ba&#39;&gt;</span>
+
+<span class="c"># You can get the member with index.</span>
+<span class="n">mio</span> <span class="o">=</span> <span class="n">ourband</span><span class="o">.</span><span class="n">members</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="c"># &lt;Member &#39;Mio Akiyama : Ba&#39;&gt;</span>
+
+<span class="c"># Of course, you can SELECT with WHERE clause.</span>
+<span class="c"># The select_one() returns a single object and select() returns generator.</span>
+<span class="n">mio</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select_one</span><span class="p">(</span><span class="s">&quot;last_name=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Akiyama&quot;</span><span class="p">])</span>
+
+<span class="n">members</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s">&quot;team_id=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">ourband</span><span class="o">.</span><span class="n">get_id</span><span class="p">()])</span>
+<span class="c"># [&lt;Member object 1&gt;, &lt;Member object 2&gt;]</span>
+
+<span class="c"># Oops, Mio desides to sing the song.</span>
+<span class="n">mio</span><span class="o">.</span><span class="n">part</span> <span class="o">=</span> <span class="s">&quot;Vo&quot;</span>
+<span class="n">mio</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+<span class="k">print</span> <span class="s">&quot;Mio&#39;s part is </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">mio</span><span class="o">.</span><span class="n">part</span>
+<span class="c"># Mio&#39;s part is Vo.</span>
+
+<span class="c"># But she canceled it.</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+
+<span class="c"># Done.</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">db_close</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="module.html" title="The macaron module content"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="overview.html" title="Macaron: O/R Mapper"
+             >previous</a> |</li>
+        <li><a href="index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>

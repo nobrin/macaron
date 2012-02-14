@@ -1,0 +1,164 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The Model class &mdash; Macaron v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.1 documentation" href="../index.html" />
+    <link rel="prev" title="The macaron module content" href="../module.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../module.html" title="The macaron module content"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../module.html"
+                        title="previous chapter">The <em>macaron</em> module content</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/class/model.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-macaron">
+<span id="the-model-class"></span><h1>The <em>Model</em> class<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="macaron.Model">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Model</tt><big>(</big><em>**kw</em><big>)</big><a class="headerlink" href="#macaron.Model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base model class</p>
+<p>Models inherit the class.</p>
+<dl class="method">
+<dt id="macaron.Model.before_create">
+<tt class="descname">before_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.before_save">
+<tt class="descname">before_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="macaron.Model.create">
+<em class="property">classmethod </em><tt class="descname">create</tt><big>(</big><em>**kw</em><big>)</big><a class="headerlink" href="#macaron.Model.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating new record</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.delete">
+<tt class="descname">delete</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deleting the record</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="macaron.Model.get">
+<em class="property">classmethod </em><tt class="descname">get</tt><big>(</big><em>id</em><big>)</big><a class="headerlink" href="#macaron.Model.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getting single result by ID</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.get_id">
+<tt class="descname">get_id</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getting value of primary key field</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.save">
+<tt class="descname">save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updating the record</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="macaron.Model.select">
+<em class="property">classmethod </em><tt class="descname">select</tt><big>(</big><em>q</em>, <em>values</em><big>)</big><a class="headerlink" href="#macaron.Model.select" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getting QueryResult instance by WHERE clause</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="macaron.Model.select_one">
+<em class="property">classmethod </em><tt class="descname">select_one</tt><big>(</big><em>q</em>, <em>values</em><big>)</big><a class="headerlink" href="#macaron.Model.select_one" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getting single result by WHERE clause</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../module.html" title="The macaron module content"
+             >previous</a> |</li>
+        <li><a href="../index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
