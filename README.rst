@@ -32,6 +32,8 @@ Example::
 
 MacaronPlugin class for Bottle_ web framework is implemented.
 
+Homepage and documentation: http://nobrin.github.com/macaron/
+
 
 Installation and Dependencies
 =============================

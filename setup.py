@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 # Project:
 # Module:
-from distutils.core import setup
+try: from setuptools import setup # for development to use 'setup.py develop' command
+except ImportError: from distutils.core import setup
 import sys
 if sys.version_info < (2, 5):
     raise NotImplementedError("Sorry, you need at least Python 2.5 to use Macaron.")
@@ -12,7 +13,7 @@ import macaron
 setup(
     name             = "macaron",
     version          = macaron.__version__,
-    description      = "Very simple O/R mapper for SQLite3 in small applications",
+    description      = "A simple O/R mapper for SQLite3",
     long_description = macaron.__doc__,
     author           = macaron.__author__,
     url              = "http://nobrin.github.com/macaron",

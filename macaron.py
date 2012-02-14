@@ -156,8 +156,18 @@ class _ManyToOne_Rev(property):
         return ManyToOneRevResult(owner, self, result)
 
 class QueryResult(object):
-    def __init__(self, cls, sql, values):
-        self.cls, self.sql, self.values = cls, sql, values
+#    def __init__(self, cls, sql, values, order_by=None):
+#        self.cls, self.sql, self.values = cls, sql, values
+#        self._order_by = order_by       # ORDER BY clause
+#        self._initialize_cursor()
+    def __init__(self, *args, **kw):
+        if len(args) == 1 and isinstance(args[0], QueryResult):
+            for n in ["cls", "sql", "values", "_order"]:
+                setattr(self, n, getattr(args[0], n))
+        else:
+            self.cls, self.sql, self.values = args
+            self._order = []
+        if kw.has_key("order_by"): self._order += kw["order_by"]
         self._initialize_cursor()
 
     def __iter__(self):
@@ -191,6 +201,11 @@ class QueryResult(object):
         if self._index >= 0: return self._cache[0]
         for obj in self:
             if self._index >= index: return obj
+
+    def order_by(self, *args):
+        """Adding ORDER BY clause to query"""
+        flds = [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
+        self._order_by = "ORDER BY %s" % ", ".join(flds)
 
 class ManyToOneRevResult(QueryResult):
     """Reverse relationship of ManyToOne"""
@@ -268,6 +283,12 @@ class Model(object):
         """Getting QueryResult instance by WHERE clause"""
         sql = "SELECT * FROM %s WHERE %s" % (cls._table_name, q)
         return QueryResult(cls, sql, values)
+
+    @classmethod
+    def all(cls):
+        """Getting all records"""
+        sql = "SELECT * FROM %s" % cls._table_name
+        return QueryResult(cls, sql, [])
 
     @classmethod
     def create(cls, **kw):
