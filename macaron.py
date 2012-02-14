@@ -12,15 +12,15 @@ Example::
     >>> import macaron
     >>> macaron.macaronage(dbfile="members.db")
     >>> team = Team.create(name="Houkago Tea Time")
-    >>> team.members.append(first_name="Ritsu", last_name="Tainaka", part="Dr")
+    >>> team.members.append(name="Ritsu", part="Dr")
     <Member object 1>
-    >>> mio = team.members.append(first_name="Mio", last_name="Akiyama", part="Ba")
+    >>> mio = team.members.append(name="Mio", part="Ba")
     >>> print mio
-    <Member 'Mio Akiyama : Ba'>
+    <Member 'Mio : Ba'>
     >>> for member in team.members: print member
     ...
-    <Member 'Ritsu Tainaka : Dr'>
-    <Member 'Mio Akiyama : Ba'>
+    <Member 'Ritsu : Dr'>
+    <Member 'Mio : Ba'>
 """
 __author__ = "Nobuo Okazaki"
 __version__ = "0.1.0-dev"

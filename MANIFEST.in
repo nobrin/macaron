@@ -3,4 +3,5 @@ include LICENSE
 include MANIFEST.in
 include test/test_*.py
 include doc/*
+include doc/class/*
 
