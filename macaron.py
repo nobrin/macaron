@@ -23,7 +23,7 @@ Example::
     <Member 'Mio : Ba'>
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.2.0-dev"
+__version__ = "0.2.0"
 __license__ = "MIT License"
 
 import sqlite3
@@ -71,11 +71,23 @@ class Macaron(object):
     def __init__(self):
         #: ``dict`` object holds :class:`sqlite3.Connection`
         self.connection = {}
+        self.used_by = []
 
     def __del__(self):
         """Closing the connections"""
+        while len(self.used_by):
+            # Removes reference pointer from TableMetaClassProperty.
+            # If the pointer leaved, closing connection causes mismatch
+            # between TableMetaClassProperty#table_meta and Macaron#connection,
+            # like test cases.
+            self.used_by.pop(0).table_meta = None
+
         for k in self.connection.keys():
             self.connection[k].close()
+
+    def get_connection(self, meta_obj):
+        self.used_by.append(meta_obj)
+        return self.connection[meta_obj.conn_name]
 
 class LazyConnection(object):
     """Lazy connection wrapper"""
@@ -115,6 +127,14 @@ class Field(object):
         if re.match(r"^BOOLEAN$", self.type, re.I):
             self.default = bool(re.match(r"^TRUE$", self.default, re.I))
 
+class AggregateFunction(object):
+    def __init__(self, field_name): self.field_name = field_name
+class Avg(AggregateFunction):   name = "AVG"
+class Max(AggregateFunction):   name = "MAX"
+class Min(AggregateFunction):   name = "MIN"
+class Sum(AggregateFunction):   name = "SUM"
+class Count(AggregateFunction): name = "COUNT"
+
 class ClassProperty(property):
     """Using class property wrapper class"""
     def __get__(self, owner_obj, cls):
@@ -130,7 +150,9 @@ class TableMetaClassProperty(property):
 
     def __get__(self, owner_obj, cls):
         if not self.table_meta:
-            self.table_meta = TableMetaInfo(_m.connection[self.conn_name], self.table_name)
+            conn = _m.get_connection(self)
+            self.table_meta = TableMetaInfo(conn, self.table_name)
+#            self.table_meta = TableMetaInfo(_m.connection[self.conn_name], self.table_name)
         return self.table_meta
 
 class TableMetaInfo(object):
@@ -206,10 +228,11 @@ class QuerySet(object):
             self.clauses = copy.deepcopy(parent.clauses)
         else:
             self.cls = parent
-            self.clauses = {"where": [], "order_by": [], "values": []}
+            self.clauses = {"where": [], "order_by": [], "values": [], "distinct": False}
         self.clauses["offset"] = 0
         self.clauses["limit"] = 0
-        self.clauses["distinct"] = False
+        self.clauses["select_fields"] = "*"
+        self.factory = self.cls._factory    # Factory method converting record to object
         self._initialize_cursor()
 
     def _initialize_cursor(self):
@@ -219,7 +242,9 @@ class QuerySet(object):
         self._cache = []    # cache list
 
     def _generate_sql(self):
-        sqls = ["SELECT * FROM %s" % self.cls._meta.table_name]
+        if self.clauses["distinct"]: distinct = "DISTINCT "
+        else: distinct = ""
+        sqls = ["SELECT %s%s FROM %s" % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
         if len(self.clauses["order_by"]):
@@ -243,7 +268,7 @@ class QuerySet(object):
         row = self.cur.fetchone()
         self._index += 1
         if not row: raise StopIteration()
-        self._cache.append(self.cls._factory(self.cur, row))
+        self._cache.append(self.factory(self.cur, row))
         return self._cache[-1]
 
     def get(self, where, values=None):
@@ -257,10 +282,21 @@ class QuerySet(object):
         except StopIteration: return obj
         raise ValueError("Returns more rows.")
 
-    def select(self, where, values):
+    def select(self, where=None, values=[]):
         newset = self.__class__(self)
-        newset.clauses["where"].append(where)
-        newset.clauses["values"] += values
+        if where: newset.clauses["where"].append(where)
+        if values: newset.clauses["values"] += values
+        return newset
+
+    def all(self):
+        return self.select()
+
+    def distinct(self):
+        """EXPERIMENTAL:
+        I don't know what situation this distinct method is used in.
+        """
+        newset = self.__class__(self)
+        newset.clauses["distinct"] = True
         return newset
 
     def order_by(self, *args):
@@ -277,6 +313,17 @@ class QuerySet(object):
         elif self._index >= index: return self._cache[index]
         for obj in self:
             if self._index >= index: return obj
+
+    # Aggregation methods
+    def aggregate(self, agg):
+        def single_value(cur, row): return row[0]
+        newset = self.__class__(self)
+        newset.clauses["select_fields"] = "%s(%s)" % (agg.name, agg.field_name)
+        newset.factory = single_value   # Change factory method for single value
+        return newset.next()
+
+    def count(self):
+        return self.aggregate(Count("*"))
 
     def __str__(self):
         objs = self._cache + [obj for obj in self]
@@ -310,8 +357,7 @@ class ModelMeta(type):
                 dict[k].set_reverse(instance)
 
 class Model(object):
-    """Base model class
-
+    """Base model class.
     Models inherit the class.
     """
     __metaclass__ = ModelMeta
@@ -339,6 +385,10 @@ class Model(object):
     def get(cls, where, values=None):
         """Getting single result by ID"""
         return QuerySet(cls).get(where, values)
+
+    @classmethod
+    def all(cls):
+        return QuerySet(cls).select()
 
     @classmethod
     def select(cls, where, values):

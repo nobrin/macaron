@@ -19,7 +19,8 @@ sql_t_member = """CREATE TABLE IF NOT EXISTS member (
     team_id     INTEGER REFERENCES team (id),
     first_name  TEXT,
     last_name   TEXT,
-    part        TEXT
+    part        TEXT,
+    age         INT
 )"""
 
 class Team(macaron.Model):
@@ -115,6 +116,28 @@ class TestMacaron(unittest.TestCase):
         nm.append(("Azusa", "Nakano", "Gt2", "Azusa Nakano : Gt2"))
         for idx, m in enumerate(team.members):
             self.assertEqual(str(m), "<Member '%s'>" % nm[idx][3])
+
+    def testAggregation(self):
+        team = Team.create(name="Houkago Tea Time")
+        team.members.append(first_name="Ritsu"  , last_name="Tainaka" , part="Dr" , age=17)
+        team.members.append(first_name="Mio"    , last_name="Akiyama" , part="Ba" , age=17)
+        team.members.append(first_name="Yui"    , last_name="Hirasawa", part="Gt1", age=17)
+        team.members.append(first_name="Tsumugi", last_name="Kotobuki", part="Kb" , age=16)
+        team.members.append(first_name="Azusa"  , last_name="Nakano"  , part="Gt2", age=17)
+
+        a = ("Akiyama", "Hirasawa", "Kotobuki", "Nakano", "Tainaka")
+        for i, m in enumerate(Team.get(1).members.order_by("last_name")):
+            self.assertEqual(m.last_name, a[i])
+
+        cnt = team.members.all().count()
+        self.assertEqual(cnt, 5)
+
+        sum_of_ages = team.members.all().aggregate(macaron.Sum("age"))
+        self.assertEqual(sum_of_ages, 84)
+
+        # sorry, I can't imagene what situation the distinct is used in.
+        qs = Member.all().distinct()
+        self.assertEqual(qs.sql, "SELECT DISTINCT * FROM member")
 
 if __name__ == "__main__":
     if os.path.isfile(DB_FILE): os.unlink(DB_FILE)

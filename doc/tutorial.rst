@@ -37,7 +37,6 @@ Model definition in Python code::
     
     class Team(macaron.Model):
         """Definition of Team table"""
-        _table_name = "team"
         def __str__(self):
             return "<Team '%s'>" % self.name
     
@@ -45,8 +44,19 @@ Model definition in Python code::
         """Definition of Member table
         team is a class property and accessor for parent 'Team' object.
         """
-        _table_name = "member"
         team = macaron.ManyToOne("team_id", Team, "id", "members")
+        
+        def __str__(self):
+            return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
+
+In these case, Team and Member classes correspond to 'team' and 'member' tables, respectively. So *Macaron* uses uncapitalized class names as table name. If not so, define ``_table_name`` for corresponding table name as a class property. Like this,
+
+::
+
+    class MyTest(macaron.Model):
+        _table_name = "my_profile"
+
+The class property of ``_table_name`` is removed when initializing in Meta-class ModelMeta.
 
 
 Creating new records
@@ -132,3 +142,19 @@ Now, we have a small database *members.db*. In this section, we try fetching rec
     
     # Done.
     macaron.db_close()
+
+
+Aggregation
+===========
+
+These are how to use aggregation methods. Aggregation is conducted with aggregate() method. The aggregate method takes single argument which is sub class of AggregateFunction. Currently, there are Sum(), Ave(), Max(), and Min(). The constructor of AggregateFunction class takes column name as argument.
+
+::
+
+    # Count
+    count = Team.get(1).members.all().count()
+    
+    # Sum
+    sum_of_ages = Team.get(1).members.all().aggregate(macaron.Sum("age"))
+    
+    # And you can use: average, max, and min are Ave(), Max(), Min(), respectively.
