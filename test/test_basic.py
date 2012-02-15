@@ -76,7 +76,7 @@ class TestMacaron(unittest.TestCase):
         macaron.bake()
 
         # Yui changes instrument to castanets
-        yui = Member.select_one("first_name=? AND last_name=?", ["Yui", "Hirasawa"])
+        yui = Member.get("first_name=? AND last_name=?", ["Yui", "Hirasawa"])
         yui.part = "Castanets"
         yui.save()
 
@@ -101,11 +101,11 @@ class TestMacaron(unittest.TestCase):
         # Add another member Azusa through reverse relation of ManyToOne
         team.members.append(first_name="Azusa", last_name="Nakano", part="Gt2")
 
-        azu = Member.select_one("first_name=? AND last_name=?", ["Azusa", "Nakano"])
+        azu = Member.get("first_name=? AND last_name=?", ["Azusa", "Nakano"])
         self.assertEqual(str(azu), "<Member 'Azusa Nakano : Gt2'>")
 
         # Okay, Yui changes part to Gt1
-        yui = Member.select_one("first_name=? AND last_name=?", ["Yui", "Hirasawa"])
+        yui = Member.get("first_name=? AND last_name=?", ["Yui", "Hirasawa"])
         yui.part = "Gt1"
         yui.save()
 
@@ -115,14 +115,6 @@ class TestMacaron(unittest.TestCase):
         nm.append(("Azusa", "Nakano", "Gt2", "Azusa Nakano : Gt2"))
         for idx, m in enumerate(team.members):
             self.assertEqual(str(m), "<Member '%s'>" % nm[idx][3])
-
-    def testOrderBy(self):
-        team = Team.create(name="Houkago Tea Time")
-        for n in self.names:
-            team.members.append(first_name=n[0], last_name=n[1], part=n[2])
-        members = team.members.order_by("last_name")
-        for m in members: print m
-
 
 if __name__ == "__main__":
     if os.path.isfile(DB_FILE): os.unlink(DB_FILE)

@@ -23,13 +23,14 @@ Example::
     <Member 'Mio : Ba'>
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.1.0"
+__version__ = "0.2.0-dev"
 __license__ = "MIT License"
 
 import sqlite3
 import re
+import copy
 
-def macaronage(dbfile=":memory:", lazy=False, connection=None):
+def macaronage(dbfile=":memory:", lazy=False, connection=None, autocommit=False):
     """Initializing macaron"""
     conn = None
     if connection:
@@ -39,6 +40,7 @@ def macaronage(dbfile=":memory:", lazy=False, connection=None):
         else: conn = sqlite3.connect(dbfile)
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
+    _m.autocommit = autocommit
 
 def execute(*args, **kw):
     """Wrapper for connection"""
@@ -59,12 +61,13 @@ class LazyConnection(object):
         self._conn = None
 
     def __getattr__(self, name):
+        if name in ["commit", "rollback", "close"] and not self._conn: return True
         self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
         return getattr(self._conn, name)
 
-    def commit(self): return True
-    def rollback(self): return True
-    def close(self): return True
+#    def commit(self): return True
+#    def rollback(self): return True
+#    def close(self): return True
 
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
@@ -115,6 +118,7 @@ class TableMeta(object):
 class ManyToOne(property):
     """Many to one relation ship definition class"""
     def __init__(self, fkey, ref, ref_key=None, reverse_name=None):
+        # in this state, db has been not connected!
         self.fkey = fkey                    #: foreign key name ('many' side)
         self.ref = ref                      #: reference table ('one' side)
         self.ref_key = ref_key              #: reference key ('one' side)
@@ -122,6 +126,7 @@ class ManyToOne(property):
 
     def __get__(self, owner, cls):
         ref = self.ref._table_name
+        self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
             % (ref, cls._table_name, ref, self.fkey, ref, self.ref_key, \
                cls._table_name, cls._meta.primary_key.name)
@@ -152,41 +157,48 @@ class _ManyToOne_Rev(property):
 
     def __get__(self, owner, cls):
         self.ref_key = self.ref_key or self.ref._meta.primary_key.name
-        result = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
-        return ManyToOneRevResult(owner, self, result)
+        qs = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
+        return ManyToOneRevSet(qs, owner, self)
 
-class QueryResult(object):
-#    def __init__(self, cls, sql, values, order_by=None):
-#        self.cls, self.sql, self.values = cls, sql, values
-#        self._order_by = order_by       # ORDER BY clause
-#        self._initialize_cursor()
-    def __init__(self, *args, **kw):
-        if len(args) == 1 and isinstance(args[0], QueryResult):
-            for n in ["cls", "sql", "values", "_order"]:
-                setattr(self, n, getattr(args[0], n))
+class QuerySet(object):
+    """This class generates SQL which like QuerySet in Django"""
+    def __init__(self, parent):
+        if isinstance(parent, QuerySet):
+            self.cls = parent.cls
+            self.clauses = copy.deepcopy(parent.clauses)
         else:
-            self.cls, self.sql, self.values = args
-            self._order = []
-        if kw.has_key("order_by"): self._order += kw["order_by"]
+            self.cls = parent
+            self.clauses = {"where": [], "order_by": [], "values": []}
+        self.clauses["offset"] = 0
+        self.clauses["limit"] = 0
+        self.clauses["distinct"] = False
         self._initialize_cursor()
 
-    def __iter__(self):
-        self._execute()
-        return self
-
     def _initialize_cursor(self):
-        """Clearing cache and state"""
+        """Cleaning cache and state"""
         self.cur = None     # cursor
-        self._index = -1    # pointer index
+        self._index = -1    # pointer
         self._cache = []    # cache list
+
+    def _generate_sql(self):
+        sqls = ["SELECT * FROM %s" % self.cls._table_name]
+        if len(self.clauses["where"]):
+            sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
+        if len(self.clauses["order_by"]):
+            sqls.append("ORDER BY %s" % ", ".join(self.clauses["order_by"]))
+        if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
+        if self.clauses["limit"]: sqls.append("LIMIT %d" % self.clauses["limit"])
+        return "\n".join(sqls)
+    sql = property(_generate_sql)   #: Generating SQL
 
     def _execute(self):
         """Getting and setting a new cursor"""
         self._initialize_cursor()
-        clauses = [self.sql]
-        if self._order: clauses.append("ORDER BY %s" % ", ".join(self._order))
-        print "\n".join(clauses)
-        self.cur = self.cls._meta.conn.cursor().execute("\n".join(clauses), self.values)
+        self.cur = self.cls._meta.conn.cursor().execute(self.sql, self.clauses["values"])
+
+    def __iter__(self):
+        self._execute()
+        return self
 
     def next(self):
         if not self.cur: self._execute()
@@ -196,29 +208,50 @@ class QueryResult(object):
         self._cache.append(self.cls._factory(self.cur, row))
         return self._cache[-1]
 
+    def get(self, where, values=None):
+        if values == None:
+            values = [where]
+            where = "%s = ?" % self.cls._meta.primary_key.name
+        qs = self.select(where, values)
+        try: obj = qs.next()
+        except StopIteration: raise self.cls.DoesNotFound()
+        try: qs.next()
+        except StopIteration: return obj
+        raise ValueError("Returns more rows.")
+
+    def select(self, where, values):
+        newset = self.__class__(self)
+        newset.clauses["where"].append(where)
+        newset.clauses["values"] += values
+        return newset
+
+    def order_by(self, *args):
+        newset = self.__class__(self)
+        newset.clauses["order_by"] += [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
+        return newset
+
+    def __getitem__(self, index):
+        newset = self.__class__(self)
+        if isinstance(index, slice):
+            start, stop = index.start or 0, index.stop or 0
+            newset.clauses["offset"], newset.clauses["limit"] = start, stop - start
+            return newset
+        elif self._index >= index: return self._cache[index]
+        for obj in self:
+            if self._index >= index: return obj
+
     def __str__(self):
         objs = self._cache + [obj for obj in self]
         return str(objs)
 
-    def __getitem__(self, index):
-        if self._index >= 0: return self._cache[0]
-        for obj in self:
-            if self._index >= index: return obj
-
-    def order_by(self, *args):
-        """Adding ORDER BY clause to query"""
-        order = [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
-#        return self.__class__(self, order_by=order)
-        return QueryResult(self, order_by=order)
-
-class ManyToOneRevResult(QueryResult):
+class ManyToOneRevSet(QuerySet):
     """Reverse relationship of ManyToOne"""
-    def __init__(self, parent, rel, query_result):
-        q = query_result
-        super(ManyToOneRevResult, self).__init__(q.cls, q.sql, q.values)
-        self.parent = parent
-        self.parent_key = rel.ref_key
-        self.cls_fkey = rel.rev_fkey
+    def __init__(self, parent_query, parent_object=None, rel=None):
+        super(ManyToOneRevSet, self).__init__(parent_query)
+        if parent_object and rel:
+            self.parent = parent_object
+            self.parent_key = rel.ref_key
+            self.cls_fkey = rel.rev_fkey
 
     def append(self, *args, **kw):
         """Append new member"""
@@ -229,7 +262,8 @@ class MetaModel(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
         if not dict.has_key("_table_name"):
-            raise Exception("'%s._table_name' is not set." % name)
+            dict["_table_name"] = name.lower()
+#            raise Exception("'%s._table_name' is not set." % name)
         return type.__new__(cls, name, bases, dict)
 
     def __init__(instance, name, bases, dict):
@@ -243,15 +277,17 @@ class Model(object):
     Models inherit the class.
     """
     __metaclass__ = MetaModel
-    _table_name = None  #: Database table name
-    _table_meta = None  #: Table information
+    _table_name = None                  #: Database table name
+    _table_meta = None                  #: Table information
+
+    class DoesNotFound(Exception): pass
 
     @classmethod
     def _get_meta(cls):
         if not cls._table_meta:
             cls._table_meta = TableMeta(_m.connection["default"], cls._table_name)
         return cls._table_meta
-    _meta = ClassProperty(_get_meta)
+    _meta = ClassProperty(_get_meta)    #: Table information
 
     def __init__(self, **kw):
         cls = self.__class__
@@ -268,31 +304,14 @@ class Model(object):
         return cls(**h)
 
     @classmethod
-    def get(cls, id):
+    def get(cls, where, values=None):
         """Getting single result by ID"""
-        return cls.select_one("%s = ?" % (cls._meta.primary_key.name), [id])
+        return QuerySet(cls).get(where, values)
 
     @classmethod
-    def select_one(cls, q, values):
-        """Getting single result by WHERE clause"""
-        m = cls.select(q, values)
-        try: obj = m.next()
-        except StopIteration: raise cls.DoesNotFound()
-        try: m.next()
-        except StopIteration: return obj
-        raise ValueError("Returns more rows.")
-
-    @classmethod
-    def select(cls, q, values):
-        """Getting QueryResult instance by WHERE clause"""
-        sql = "SELECT * FROM %s WHERE %s" % (cls._table_name, q)
-        return QueryResult(cls, sql, values)
-
-    @classmethod
-    def all(cls):
-        """Getting all records"""
-        sql = "SELECT * FROM %s" % cls._table_name
-        return QueryResult(cls, sql, [])
+    def select(cls, where, values):
+        """Getting QuerySet instance by WHERE clause"""
+        return QuerySet(cls).select(where, values)
 
     @classmethod
     def create(cls, **kw):
