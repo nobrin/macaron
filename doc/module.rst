@@ -6,21 +6,5 @@ The *macaron* module content
     :synopsis: SQLite O/R mapper
 .. moduleauthor:: Nobuo Okazaki <nobrin@biokids.org>
 
-.. autofunction:: macaronage
-
-    This is called at starting use of Macaron.
-
-    The basic connection parameters are:
-    
-    - **dbfile** -- The database file name
-    - **lazy** -- Use LazyConnection class
-    - **connection** -- sqlite3.Connection object
-
-.. autofunction:: bake
-
-.. autofunction:: rollback
-
-.. autofunction:: execute
-
-.. autofunction:: db_close
-
+.. automodule:: macaron
+   :members: macaronage, execute, bake, rollback, db_close

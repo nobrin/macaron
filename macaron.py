@@ -35,7 +35,13 @@ class ObjectDoesNotExist(Exception): pass
 
 # --- Module methods
 def macaronage(dbfile=":memory:", lazy=False, connection=None, autocommit=False):
-    """Initializing macaron"""
+    """Initializes macaron.
+    This sets Macaron instance to module global variable *_m* (don't access directly).
+    If *lazy* is ``True``, :class:`LazyConnection` object is used for connection, which
+    will connect to the DB when using. If *autocommit* is ``True``, this will
+    commits when this object will be unloaded.
+    """
+    globals()["_m"] = Macaron()
     conn = None
     if connection:
         conn = connection
@@ -47,11 +53,13 @@ def macaronage(dbfile=":memory:", lazy=False, connection=None, autocommit=False)
     _m.autocommit = autocommit
 
 def execute(*args, **kw):
-    """Wrapper for connection"""
+    """Executes ``sqlite3.Cursor#execute()``.
+    This calls ``sqlite3.Cursor#execute()``.
+    """
     return _m.connection["default"].cursor().execute(*args, **kw)
 
 def bake():
-    """Committing the database."""
+    """Commits the database."""
     _m.connection["default"].commit()
 
 def rollback(): _m.connection["default"].rollback()
@@ -61,6 +69,7 @@ def db_close(): _m.connection["default"].close()
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
     def __init__(self):
+        #: ``dict`` object holds :class:`sqlite3.Connection`
         self.connection = {}
 
     def __del__(self):
@@ -125,11 +134,18 @@ class TableMetaClassProperty(property):
         return self.table_meta
 
 class TableMetaInfo(object):
-    """Table information class"""
+    """Table information class.
+    This object has table information, which is set to ModelClass._meta by
+    :class:`ModelMeta`. If you use ``Bookmark`` class, you can access the
+    table information with ``Bookmark._meta``.
+    """
     def __init__(self, conn, table_name):
+        self._conn = conn   #: Connection for the table
+        #: Table fields collection
         self.fields = Fields()
+        #: Primary key :class:`Field`
         self.primary_key = None
-        self.conn = conn
+        #: Table name
         self.table_name = table_name
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
@@ -154,19 +170,17 @@ class ManyToOne(property):
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
             % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
                clstbl, cls._meta.primary_key.name)
-        cur = cls._meta.conn.cursor()
-        cur = cur.execute(sql, [owner.get_id()])
+        cur = cls._meta._conn.cursor()
+        cur = cur.execute(sql, [owner.pk])
         row = cur.fetchone()
         if cur.fetchone(): raise ValueError()
         return self.ref._factory(cur, row)
 
     def set_reverse(self, rev_cls):
-        """Setting up one to many definition method
-        This method will be called in MetaModel#__init__.
-        To inform the model class to ManyToOne and _ManyToOne_Rev classes.
-
-        @type  rev_cls: class
-        @param rev_cls: 'many' side class
+        """Sets up one to many definition method.
+        This method will be called in ``ModelMeta#__init__``. To inform the
+        model class to ManyToOne and _ManyToOne_Rev classes. The *rev_class*
+        means **'many(child)' side class**.
         """
         self.reverse_name = self.reverse_name or "%s_set" % rev_cls.__name__.lower()
         setattr(self.ref, self.reverse_name, _ManyToOne_Rev(self.ref, self.ref_key, rev_cls, self.fkey))
@@ -218,7 +232,7 @@ class QuerySet(object):
     def _execute(self):
         """Getting and setting a new cursor"""
         self._initialize_cursor()
-        self.cur = self.cls._meta.conn.cursor().execute(self.sql, self.clauses["values"])
+        self.cur = self.cls._meta._conn.cursor().execute(self.sql, self.clauses["values"])
 
     def __iter__(self):
         self._execute()
@@ -311,6 +325,11 @@ class Model(object):
             if not hasattr(self, k): ValueError("Invalid column name '%s'." % k)
             setattr(self, k, kw[k])
 
+    def get_key_value(self):
+        """Getting value of primary key field"""
+        return getattr(self, self.__class__._meta.primary_key.name)
+    pk = property(get_key_value)    #: accessor for primary key value
+
     @classmethod
     def _factory(cls, cur, row):
         h = dict([[d[0], row[i]] for i, d in enumerate(cur.description)])
@@ -339,7 +358,7 @@ class Model(object):
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
         sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._meta.table_name, ", ".join(names), holder)
-        cur = cls._meta.conn.cursor().execute(sql, values)
+        cur = cls._meta._conn.cursor().execute(sql, values)
         newobj = cls.get(cur.lastrowid)
         for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
         return obj
@@ -355,23 +374,27 @@ class Model(object):
         self.before_save()
         values = [getattr(self, n) for n in names]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
-        cls._meta.conn.cursor().execute(sql, values + [self.get_id()])
+        cls._meta._conn.cursor().execute(sql, values + [self.pk])
 
     def delete(self):
         """Deleting the record"""
         cls = self.__class__
         sql = "DELETE FROM %s WHERE %s = ?" % (cls._meta.table_name, cls._meta.primary_key.name)
-        cls._meta.conn.cursor().execute(sql, [self.get_id()])
+        cls._meta._conn.cursor().execute(sql, [self.pk])
 
-    def get_id(self):
-        """Getting value of primary key field"""
-        return getattr(self, self.__class__._meta.primary_key.name)
+    # These hooks are triggered at INSERT and UPDATE.
+    # INSERT: before_create -> before_save -> INSERT
+    # UPDATE: bofore_save -> UPDATE
+    def before_create(self):
+        """Hook for before INSERT"""
+        pass
 
-    def before_create(self): pass
-    def before_save(self): pass
+    def before_save(self):
+        """Hook for before INSERT and UPDATE"""
+        pass
 
     def __repr__(self):
-        return "<%s object %s>" % (self.__class__.__name__, self.get_id())
+        return "<%s object %s>" % (self.__class__.__name__, self.pk)
 
 class MacaronPlugin(object):
     """Macaron plugin for Bottle web framework
@@ -405,4 +428,4 @@ class MacaronPlugin(object):
         return wrapper
 
 # This is a module global variable '_m' having Macaron object.
-_m = Macaron()
+_m = None

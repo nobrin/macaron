@@ -58,7 +58,7 @@ class TestMacaron(unittest.TestCase):
 
         # create members
         for idx, n in enumerate(self.names):
-            member = Member.create(team_id=team.get_id(), first_name=n[0], last_name=n[1], part=n[2])
+            member = Member.create(team_id=team.pk, first_name=n[0], last_name=n[1], part=n[2])
             self.assertEqual(str(member), "<Member '%s'>" % n[3])
             self.assertEqual(member.id, idx + 1)
 
@@ -89,7 +89,7 @@ class TestMacaron(unittest.TestCase):
 
         # Add another member 'Sawako' as Gt1
         team = Team.get(1)
-        Member.create(team_id=team.get_id(), first_name="Sawako", last_name="Yamanaka", part="Gt1")
+        Member.create(team_id=team.pk, first_name="Sawako", last_name="Yamanaka", part="Gt1")
 
         # re-fetch Sawako with index
         sawako = team.members[4]

@@ -60,7 +60,7 @@ Okay, we have created some tables and defined model classes. Team class is the m
     
     # A macaron needs 'macaronage' process.
     # The macaronage() initializes db connection with file name.
-    macaron.macaronage(dbfile="members.db")
+    macaron.macaronage("members.db")
     
     # Create a new team named 'Houkago Tea Time'.
     # Model.create() execute INSERT statement.
@@ -74,7 +74,6 @@ Okay, we have created some tables and defined model classes. Team class is the m
     # Yeah, all tasks has been done. Let's bake the macaron.
     # Commit this changes to database.
     macaron.bake()
-    macaron.db_close()
 
 Call **macaron.macaronage()** to initialize macaron. This method connect to **members.db** SQLite database file. And a new team will be created with *ModelClass*.create() method. The **create()** is a class method and is called with key word arguments which consist field name and value pairs. It returns created Team object.
 
@@ -115,10 +114,10 @@ Now, we have a small database *members.db*. In this section, we try fetching rec
     # <Member 'Mio Akiyama : Ba'>
     
     # Of course, you can SELECT with WHERE clause.
-    # The select_one() returns a single object and select() returns generator.
-    mio = Member.select_one("last_name=?", ["Akiyama"])
+    # The get() returns a single object and select() returns generator.
+    mio = Member.get("last_name=?", ["Akiyama"])
     
-    members = Member.select("team_id=?", [ourband.get_id()])
+    members = Member.select("team_id=?", [ourband.pk])
     # [<Member object 1>, <Member object 2>]
     
     # Oops, Mio desides to sing the song.
@@ -133,5 +132,3 @@ Now, we have a small database *members.db*. In this section, we try fetching rec
     
     # Done.
     macaron.db_close()
-
-

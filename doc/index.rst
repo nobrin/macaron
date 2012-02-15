@@ -20,7 +20,7 @@ Example::
     >>> team.members.append(name="Azusa", part="Gt2")
     <Member object 1>
     >>> macaron.bake()
-    >>> azu = Member.select_one("part=?", ["Gt2"])
+    >>> azu = Member.get("part=?", ["Gt2"])
     >>> print azu
     <Member 'Azusa : Gt2'>
     >>> macaron.db_close()
