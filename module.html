@@ -23,7 +23,7 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="Macaron v0.1 documentation" href="index.html" />
-    <link rel="next" title="The Model class" href="class/model.html" />
+    <link rel="next" title="The class contents reference" href="class/model.html" />
     <link rel="prev" title="Tutorial" href="tutorial.html" /> 
   </head>
   <body>
@@ -37,7 +37,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="class/model.html" title="The Model class"
+          <a href="class/model.html" title="The class contents reference"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="tutorial.html" title="Tutorial"
@@ -52,7 +52,7 @@
                         title="previous chapter">Tutorial</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="class/model.html"
-                        title="next chapter">The <em>Model</em> class</a></p>
+                        title="next chapter">The class contents reference</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="sources/module.txt"
@@ -82,40 +82,48 @@
   <div class="section" id="module-macaron">
 <span id="the-macaron-module-content"></span><h1>The <em>macaron</em> module content<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
 <p><em>Platforms: </em>Unix, Windows</p>
+<span class="target" id="module-macaron"></span><p><em>Macaron</em> is a small and simple object-relational mapper (ORM) for SQLite and
+Python. It is distributed as a single file module which has no dependencies
+other than the Python Standard Library.</p>
+<p><em>Macaron</em> provides provides easy access methods to SQLite database. And it
+supports Bottle web framework through plugin mechanism.</p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">macaron</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="n">dbfile</span><span class="o">=</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">team</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Houkago Tea Time&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Ritsu&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Dr&quot;</span><span class="p">)</span>
+<span class="go">&lt;Member object 1&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mio</span> <span class="o">=</span> <span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Mio&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Ba&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">mio</span>
+<span class="go">&lt;Member &#39;Mio : Ba&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="p">:</span> <span class="k">print</span> <span class="n">member</span>
+<span class="gp">...</span>
+<span class="go">&lt;Member &#39;Ritsu : Dr&#39;&gt;</span>
+<span class="go">&lt;Member &#39;Mio : Ba&#39;&gt;</span>
+</pre></div>
+</div>
 <dl class="function">
 <dt id="macaron.macaronage">
-<tt class="descclassname">macaron.</tt><tt class="descname">macaronage</tt><big>(</big><em>dbfile=':memory:'</em>, <em>lazy=False</em>, <em>connection=None</em><big>)</big><a class="headerlink" href="#macaron.macaronage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initializing macaron</p>
-<p>This is called at starting use of Macaron.</p>
-<p>The basic connection parameters are:</p>
-<ul class="simple">
-<li><strong>dbfile</strong> &#8211; The database file name</li>
-<li><strong>lazy</strong> &#8211; Use LazyConnection class</li>
-<li><strong>connection</strong> &#8211; sqlite3.Connection object</li>
-</ul>
+<tt class="descclassname">macaron.</tt><tt class="descname">macaronage</tt><big>(</big><em>dbfile=':memory:'</em>, <em>lazy=False</em>, <em>connection=None</em>, <em>autocommit=False</em><big>)</big><a class="headerlink" href="#macaron.macaronage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes macaron.
+This sets Macaron instance to module global variable <em>_m</em> (don&#8217;t access directly).
+If <em>lazy</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">LazyConnection</span></tt> object is used for connection, which
+will connect to the DB when using. If <em>autocommit</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, this will
+commits when this object will be unloaded.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.execute">
+<tt class="descclassname">macaron.</tt><tt class="descname">execute</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#macaron.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes <tt class="docutils literal"><span class="pre">sqlite3.Cursor#execute()</span></tt>.
+This calls <tt class="docutils literal"><span class="pre">sqlite3.Cursor#execute()</span></tt>.</p>
 </dd></dl>
 
 <dl class="function">
 <dt id="macaron.bake">
 <tt class="descclassname">macaron.</tt><tt class="descname">bake</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.bake" title="Permalink to this definition">¶</a></dt>
-<dd><p>Committing the database.</p>
+<dd><p>Commits the database.</p>
 </dd></dl>
-
-<dl class="function">
-<dt id="macaron.rollback">
-<tt class="descclassname">macaron.</tt><tt class="descname">rollback</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.rollback" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="macaron.execute">
-<tt class="descclassname">macaron.</tt><tt class="descname">execute</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#macaron.execute" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wrapper for connection</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="macaron.db_close">
-<tt class="descclassname">macaron.</tt><tt class="descname">db_close</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.db_close" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 </div>
 
@@ -135,7 +143,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="class/model.html" title="The Model class"
+          <a href="class/model.html" title="The class contents reference"
              >next</a> |</li>
         <li class="right" >
           <a href="tutorial.html" title="Tutorial"

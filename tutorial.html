@@ -53,6 +53,7 @@
 <li><a class="reference internal" href="#definition-of-models">Definition of models</a></li>
 <li><a class="reference internal" href="#creating-new-records">Creating new records</a></li>
 <li><a class="reference internal" href="#fetching-records-and-updating">Fetching records and updating</a></li>
+<li><a class="reference internal" href="#aggregation">Aggregation</a></li>
 </ul>
 </li>
 </ul>
@@ -115,7 +116,6 @@ CREATE TABLE member (
 
 <span class="k">class</span> <span class="nc">Team</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Definition of Team table&quot;&quot;&quot;</span>
-    <span class="n">_table_name</span> <span class="o">=</span> <span class="s">&quot;team&quot;</span>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;&lt;Team &#39;</span><span class="si">%s</span><span class="s">&#39;&gt;&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
 
@@ -123,10 +123,18 @@ CREATE TABLE member (
     <span class="sd">&quot;&quot;&quot;Definition of Member table</span>
 <span class="sd">    team is a class property and accessor for parent &#39;Team&#39; object.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_table_name</span> <span class="o">=</span> <span class="s">&quot;member&quot;</span>
     <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">Team</span><span class="p">,</span> <span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="s">&quot;members&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;Member &#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> : </span><span class="si">%s</span><span class="s">&#39;&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">part</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>In these case, Team and Member classes correspond to &#8216;team&#8217; and &#8216;member&#8217; tables, respectively. So <em>Macaron</em> uses uncapitalized class names as table name. If not so, define <tt class="docutils literal"><span class="pre">_table_name</span></tt> for corresponding table name as a class property. Like this,</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">MyTest</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">_table_name</span> <span class="o">=</span> <span class="s">&quot;my_profile&quot;</span>
+</pre></div>
+</div>
+<p>The class property of <tt class="docutils literal"><span class="pre">_table_name</span></tt> is removed when initializing in Meta-class ModelMeta.</p>
 </div>
 <div class="section" id="creating-new-records">
 <h2>Creating new records<a class="headerlink" href="#creating-new-records" title="Permalink to this headline">¶</a></h2>
@@ -135,7 +143,7 @@ CREATE TABLE member (
 
 <span class="c"># A macaron needs &#39;macaronage&#39; process.</span>
 <span class="c"># The macaronage() initializes db connection with file name.</span>
-<span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="n">dbfile</span><span class="o">=</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
 
 <span class="c"># Create a new team named &#39;Houkago Tea Time&#39;.</span>
 <span class="c"># Model.create() execute INSERT statement.</span>
@@ -149,7 +157,6 @@ CREATE TABLE member (
 <span class="c"># Yeah, all tasks has been done. Let&#39;s bake the macaron.</span>
 <span class="c"># Commit this changes to database.</span>
 <span class="n">macaron</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
-<span class="n">macaron</span><span class="o">.</span><span class="n">db_close</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>Call <strong>macaron.macaronage()</strong> to initialize macaron. This method connect to <strong>members.db</strong> SQLite database file. And a new team will be created with <em>ModelClass</em>.create() method. The <strong>create()</strong> is a class method and is called with key word arguments which consist field name and value pairs. It returns created Team object.</p>
@@ -183,10 +190,10 @@ CREATE TABLE member (
 <span class="c"># &lt;Member &#39;Mio Akiyama : Ba&#39;&gt;</span>
 
 <span class="c"># Of course, you can SELECT with WHERE clause.</span>
-<span class="c"># The select_one() returns a single object and select() returns generator.</span>
-<span class="n">mio</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select_one</span><span class="p">(</span><span class="s">&quot;last_name=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Akiyama&quot;</span><span class="p">])</span>
+<span class="c"># The get() returns a single object and select() returns generator.</span>
+<span class="n">mio</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;last_name=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Akiyama&quot;</span><span class="p">])</span>
 
-<span class="n">members</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s">&quot;team_id=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">ourband</span><span class="o">.</span><span class="n">get_id</span><span class="p">()])</span>
+<span class="n">members</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s">&quot;team_id=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">ourband</span><span class="o">.</span><span class="n">pk</span><span class="p">])</span>
 <span class="c"># [&lt;Member object 1&gt;, &lt;Member object 2&gt;]</span>
 
 <span class="c"># Oops, Mio desides to sing the song.</span>
@@ -201,6 +208,19 @@ CREATE TABLE member (
 
 <span class="c"># Done.</span>
 <span class="n">macaron</span><span class="o">.</span><span class="n">db_close</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="aggregation">
+<h2>Aggregation<a class="headerlink" href="#aggregation" title="Permalink to this headline">¶</a></h2>
+<p>These are how to use aggregation methods. Aggregation is conducted with aggregate() method. The aggregate method takes single argument which is sub class of AggregateFunction. Currently, there are Sum(), Ave(), Max(), and Min(). The constructor of AggregateFunction class takes column name as argument.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># Count</span>
+<span class="n">count</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+<span class="c"># Sum</span>
+<span class="n">sum_of_ages</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">all</span><span class="p">()</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Sum</span><span class="p">(</span><span class="s">&quot;age&quot;</span><span class="p">))</span>
+
+<span class="c"># And you can use: average, max, and min are Ave(), Max(), Min(), respectively.</span>
 </pre></div>
 </div>
 </div>

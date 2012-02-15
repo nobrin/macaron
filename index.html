@@ -78,7 +78,7 @@
 <span class="gp">&gt;&gt;&gt; </span><span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Azusa&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Gt2&quot;</span><span class="p">)</span>
 <span class="go">&lt;Member object 1&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">macaron</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">azu</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select_one</span><span class="p">(</span><span class="s">&quot;part=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Gt2&quot;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">azu</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;part=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Gt2&quot;</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">azu</span>
 <span class="go">&lt;Member &#39;Azusa : Gt2&#39;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">macaron</span><span class="o">.</span><span class="n">db_close</span><span class="p">()</span>
@@ -99,10 +99,11 @@
 <li class="toctree-l2"><a class="reference internal" href="tutorial.html#definition-of-models">Definition of models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorial.html#creating-new-records">Creating new records</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorial.html#fetching-records-and-updating">Fetching records and updating</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#aggregation">Aggregation</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="module.html">The <em>macaron</em> module content</a></li>
-<li class="toctree-l1"><a class="reference internal" href="class/model.html">The <em>Model</em> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="class/model.html">The class contents reference</a></li>
 </ul>
 </div>
 </div>
