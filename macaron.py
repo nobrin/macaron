@@ -30,6 +30,10 @@ import sqlite3
 import re
 import copy
 
+# --- Exceptions
+class ObjectDoesNotExist(Exception): pass
+
+# --- Module methods
 def macaronage(dbfile=":memory:", lazy=False, connection=None, autocommit=False):
     """Initializing macaron"""
     conn = None
@@ -53,6 +57,17 @@ def bake():
 def rollback(): _m.connection["default"].rollback()
 def db_close(): _m.connection["default"].close()
 
+# Classes
+class Macaron(object):
+    """Macaron controller class. Do not instance this class by user."""
+    def __init__(self):
+        self.connection = {}
+
+    def __del__(self):
+        """Closing the connections"""
+        for k in self.connection.keys():
+            self.connection[k].close()
+
 class LazyConnection(object):
     """Lazy connection wrapper"""
     def __init__(self, *args, **kw):
@@ -61,18 +76,12 @@ class LazyConnection(object):
         self._conn = None
 
     def __getattr__(self, name):
-        if name in ["commit", "rollback", "close"] and not self._conn: return True
         self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
         return getattr(self._conn, name)
 
-#    def commit(self): return True
-#    def rollback(self): return True
-#    def close(self): return True
-
-class Macaron(object):
-    """Macaron controller class. Do not instance this class by user."""
-    def __init__(self):
-        self.connection = {}
+    def commit(self):   return
+    def rollback(self): return
+    def close(self):    return
 
 class Fields(list):
     """Field collection"""
@@ -102,12 +111,26 @@ class ClassProperty(property):
     def __get__(self, owner_obj, cls):
         return self.fget.__get__(owner_obj, cls)()
 
-class TableMeta(object):
+class TableMetaClassProperty(property):
+    """Using TableMetaInfo class property wrapper class"""
+    def __init__(self):
+        super(TableMetaClassProperty, self).__init__()
+        self.table_meta = None
+        self.table_name = None
+        self.conn_name = "default"  #: for future use. multiple databases?
+
+    def __get__(self, owner_obj, cls):
+        if not self.table_meta:
+            self.table_meta = TableMetaInfo(_m.connection[self.conn_name], self.table_name)
+        return self.table_meta
+
+class TableMetaInfo(object):
     """Table information class"""
     def __init__(self, conn, table_name):
         self.fields = Fields()
         self.primary_key = None
         self.conn = conn
+        self.table_name = table_name
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
         for row in rows:
@@ -125,11 +148,12 @@ class ManyToOne(property):
         self.reverse_name = reverse_name    #: accessor name for one to many relation
 
     def __get__(self, owner, cls):
-        ref = self.ref._table_name
+        reftbl = self.ref._meta.table_name
+        clstbl = cls._meta.table_name
         self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
-            % (ref, cls._table_name, ref, self.fkey, ref, self.ref_key, \
-               cls._table_name, cls._meta.primary_key.name)
+            % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
+               clstbl, cls._meta.primary_key.name)
         cur = cls._meta.conn.cursor()
         cur = cur.execute(sql, [owner.get_id()])
         row = cur.fetchone()
@@ -181,7 +205,7 @@ class QuerySet(object):
         self._cache = []    # cache list
 
     def _generate_sql(self):
-        sqls = ["SELECT * FROM %s" % self.cls._table_name]
+        sqls = ["SELECT * FROM %s" % self.cls._meta.table_name]
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
         if len(self.clauses["order_by"]):
@@ -214,7 +238,7 @@ class QuerySet(object):
             where = "%s = ?" % self.cls._meta.primary_key.name
         qs = self.select(where, values)
         try: obj = qs.next()
-        except StopIteration: raise self.cls.DoesNotFound()
+        except StopIteration: raise self.cls.DoesNotExist()
         try: qs.next()
         except StopIteration: return obj
         raise ValueError("Returns more rows.")
@@ -258,12 +282,12 @@ class ManyToOneRevSet(QuerySet):
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
-class MetaModel(type):
+class ModelMeta(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
-        if not dict.has_key("_table_name"):
-            dict["_table_name"] = name.lower()
-#            raise Exception("'%s._table_name' is not set." % name)
+        dict["DoesNotExist"] = type("DoesNotExist", (ObjectDoesNotExist,), {})
+        dict["_meta"] = TableMetaClassProperty()
+        dict["_meta"].table_name = dict.pop("_table_name", name.lower())
         return type.__new__(cls, name, bases, dict)
 
     def __init__(instance, name, bases, dict):
@@ -276,23 +300,12 @@ class Model(object):
 
     Models inherit the class.
     """
-    __metaclass__ = MetaModel
-    _table_name = None                  #: Database table name
-    _table_meta = None                  #: Table information
-
-    class DoesNotFound(Exception): pass
-
-    @classmethod
-    def _get_meta(cls):
-        if not cls._table_meta:
-            cls._table_meta = TableMeta(_m.connection["default"], cls._table_name)
-        return cls._table_meta
-    _meta = ClassProperty(_get_meta)    #: Table information
+    __metaclass__ = ModelMeta
+    _table_name = None  #: Database table name (the property will be deleted in ModelMeta)
+    _meta = None        #: accessor for TableMetaInfo (set in ModelMeta)
 
     def __init__(self, **kw):
         cls = self.__class__
-        if not cls._meta:
-            cls._meta = TableMeta(_m.connection["default"], cls._table_name)
         for fld in cls._meta.fields: setattr(self, fld.name, fld.default)
         for k in kw.keys():
             if not hasattr(self, k): ValueError("Invalid column name '%s'." % k)
@@ -325,7 +338,7 @@ class Model(object):
         obj.before_save()
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
-        sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._table_name, ", ".join(names), holder)
+        sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._meta.table_name, ", ".join(names), holder)
         cur = cls._meta.conn.cursor().execute(sql, values)
         newobj = cls.get(cur.lastrowid)
         for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
@@ -341,13 +354,13 @@ class Model(object):
         holder = ", ".join(["%s = ?" % n for n in names])
         self.before_save()
         values = [getattr(self, n) for n in names]
-        sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._table_name, holder, cls._meta.primary_key.name)
+        sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
         cls._meta.conn.cursor().execute(sql, values + [self.get_id()])
 
     def delete(self):
         """Deleting the record"""
         cls = self.__class__
-        sql = "DELETE FROM %s WHERE %s = ?" % (cls._table_name, cls._meta.primary_key.name)
+        sql = "DELETE FROM %s WHERE %s = ?" % (cls._meta.table_name, cls._meta.primary_key.name)
         cls._meta.conn.cursor().execute(sql, [self.get_id()])
 
     def get_id(self):

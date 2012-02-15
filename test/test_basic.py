@@ -23,12 +23,12 @@ sql_t_member = """CREATE TABLE IF NOT EXISTS member (
 )"""
 
 class Team(macaron.Model):
-    _table_name = "team"
+#    _table_name = "team"   # if not set, default is className.lower()
     def __str__(self):
         return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
-    _table_name = "member"
+#    _table_name = "member"
     team = macaron.ManyToOne("team_id", Team, "id", "members")
 
     def __str__(self):
