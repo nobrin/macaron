@@ -30,7 +30,10 @@ class Team(macaron.Model):
 
 class Member(macaron.Model):
 #    _table_name = "member"
-    team = macaron.ManyToOne("team_id", Team, "id", "members")
+#    team = macaron.ManyToOne(Team, "members", "team_id", "id")
+#    team = macaron.ManyToOne(Team, "team_id", related_name="members")
+#    team = macaron.ManyToOne(Team, related_name="members")
+    team = macaron.ManyToOne(Team, "members")
 
     def __str__(self):
         return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)

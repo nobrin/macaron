@@ -4,8 +4,8 @@
 Python. It is distributed as a single file module which has no dependencies
 other than the Python Standard Library.
 
-*Macaron* provides provides easy access methods to SQLite database. And it
-supports Bottle web framework through plugin mechanism.
+*Macaron* provides easy access methods to SQLite database. And it supports
+Bottle web framework through plugin mechanism.
 
 Example::
 
@@ -23,7 +23,7 @@ Example::
     <Member 'Mio : Ba'>
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.2.0"
+__version__ = "0.2.1-dev"
 __license__ = "MIT License"
 
 import sqlite3
@@ -116,12 +116,19 @@ class Fields(list):
     def __getitem__(self, name): return self._field_dict[name]
 
 class Field(object):
-    """Field information class"""
+    """Field information class
+
+       :param row: tuple got from 'PRAGMA table_info(``table_name``)'
+       :type row: tuple
+
+       .. attribute:: cid
+                      name
+                      type
+                      not_null
+                      default
+                      is_primary_key
+    """
     def __init__(self, row):
-        """
-        @type  row: tuple
-        @param row: tuple got from 'PRAGMA table_info(table_name)'
-        """
         self.cid, self.name, self.type, \
             self.not_null, self.default, self.is_primary_key = row
         if re.match(r"^BOOLEAN$", self.type, re.I):
@@ -150,9 +157,7 @@ class TableMetaClassProperty(property):
 
     def __get__(self, owner_obj, cls):
         if not self.table_meta:
-            conn = _m.get_connection(self)
-            self.table_meta = TableMetaInfo(conn, self.table_name)
-#            self.table_meta = TableMetaInfo(_m.connection[self.conn_name], self.table_name)
+            self.table_meta = TableMetaInfo(_m.get_connection(self), self.table_name)
         return self.table_meta
 
 class TableMetaInfo(object):
@@ -162,7 +167,7 @@ class TableMetaInfo(object):
     table information with ``Bookmark._meta``.
     """
     def __init__(self, conn, table_name):
-        self._conn = conn   #: Connection for the table
+        self._conn = conn   # Connection for the table
         #: Table fields collection
         self.fields = Fields()
         #: Primary key :class:`Field`
@@ -178,16 +183,17 @@ class TableMetaInfo(object):
 
 class ManyToOne(property):
     """Many to one relation ship definition class"""
-    def __init__(self, fkey, ref, ref_key=None, reverse_name=None):
+    def __init__(self, ref, related_name=None, fkey=None, ref_key=None):
         # in this state, db has been not connected!
-        self.fkey = fkey                    #: foreign key name ('many' side)
         self.ref = ref                      #: reference table ('one' side)
+        self.fkey = fkey                    #: foreign key name ('many' side)
         self.ref_key = ref_key              #: reference key ('one' side)
-        self.reverse_name = reverse_name    #: accessor name for one to many relation
+        self.related_name = related_name    #: accessor name for one to many relation
 
     def __get__(self, owner, cls):
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
+        self.fkey = self.fkey or "%s_id" % self.ref._meta.table_name
         self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
             % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
@@ -204,8 +210,8 @@ class ManyToOne(property):
         model class to ManyToOne and _ManyToOne_Rev classes. The *rev_class*
         means **'many(child)' side class**.
         """
-        self.reverse_name = self.reverse_name or "%s_set" % rev_cls.__name__.lower()
-        setattr(self.ref, self.reverse_name, _ManyToOne_Rev(self.ref, self.ref_key, rev_cls, self.fkey))
+        self.related_name = self.related_name or "%s_set" % rev_cls.__name__.lower()
+        setattr(self.ref, self.related_name, _ManyToOne_Rev(self.ref, self.ref_key, rev_cls, self.fkey))
 
 class _ManyToOne_Rev(property):
     """The reverse of many to one relationship."""
@@ -216,6 +222,7 @@ class _ManyToOne_Rev(property):
         self.rev_fkey = rev_fkey    # Foreign key name of child
 
     def __get__(self, owner, cls):
+        self.rev_fkey = self.rev_fkey or "%s_id" % self.ref._meta.table_name
         self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         qs = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
         return ManyToOneRevSet(qs, owner, self)
@@ -277,7 +284,8 @@ class QuerySet(object):
             where = "%s = ?" % self.cls._meta.primary_key.name
         qs = self.select(where, values)
         try: obj = qs.next()
-        except StopIteration: raise self.cls.DoesNotExist()
+        except StopIteration:
+            raise self.cls.DoesNotExist("%s object is not found." % cls.__name__)
         try: qs.next()
         except StopIteration: return obj
         raise ValueError("Returns more rows.")
@@ -404,13 +412,11 @@ class Model(object):
             if fld.is_primary_key and not getattr(obj, fld.name): continue
             names.append(fld.name)
         obj.before_create()
-        obj.before_save()
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
         sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._meta.table_name, ", ".join(names), holder)
-        cur = cls._meta._conn.cursor().execute(sql, values)
-        newobj = cls.get(cur.lastrowid)
-        for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
+        cls._save_and_update_object(obj, sql, values)
+        obj.after_create()
         return obj
 
     def save(self):
@@ -424,7 +430,17 @@ class Model(object):
         self.before_save()
         values = [getattr(self, n) for n in names]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
-        cls._meta._conn.cursor().execute(sql, values + [self.pk])
+        cls._save_and_update_object(self, sql, values + [self.pk])
+        self.after_save()
+
+    @staticmethod
+    def _save_and_update_object(obj, sql, values):
+        cls = obj.__class__
+        cur = cls._meta._conn.cursor().execute(sql, values)
+        if obj.pk == None: current_id = cur.lastrowid
+        else: current_id = obj.pk
+        newobj = cls.get(current_id)
+        for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
 
     def delete(self):
         """Deleting the record"""
@@ -432,15 +448,23 @@ class Model(object):
         sql = "DELETE FROM %s WHERE %s = ?" % (cls._meta.table_name, cls._meta.primary_key.name)
         cls._meta._conn.cursor().execute(sql, [self.pk])
 
-    # These hooks are triggered at INSERT and UPDATE.
-    # INSERT: before_create -> before_save -> INSERT
-    # UPDATE: bofore_save -> UPDATE
+    # These hooks are triggered at Model.create() and Model#save().
+    # Model.create(): before_create -> INSERT -> after_create
+    # Model#save()  : bofore_save -> UPDATE -> after_save
     def before_create(self):
         """Hook for before INSERT"""
         pass
 
     def before_save(self):
-        """Hook for before INSERT and UPDATE"""
+        """Hook for before UPDATE"""
+        pass
+
+    def after_create(self):
+        """Hook for after INSERT"""
+        pass
+
+    def after_save(self):
+        """Hook for after UPDATE"""
         pass
 
     def __repr__(self):
