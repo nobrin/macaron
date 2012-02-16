@@ -7,13 +7,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>The class contents reference &mdash; Macaron v0.1 documentation</title>
+    <title>Model class reference &mdash; Macaron v0.2 documentation</title>
     <link rel="stylesheet" href="../static/macaron.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '0.1',
+        VERSION:     '0.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -22,8 +22,9 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
-    <link rel="top" title="Macaron v0.1 documentation" href="../index.html" />
-    <link rel="prev" title="The macaron module content" href="../module.html" /> 
+    <link rel="top" title="Macaron v0.2 documentation" href="../index.html" />
+    <link rel="next" title="QuerySet reference" href="queryset.html" />
+    <link rel="prev" title="Module contents" href="../module.html" /> 
   </head>
   <body>
     <div class="related">
@@ -36,16 +37,55 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="../module.html" title="The macaron module content"
+          <a href="queryset.html" title="QuerySet reference"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../module.html" title="Module contents"
              accesskey="P">previous</a> |</li>
-        <li><a href="../index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">Macaron v0.2 documentation</a> &raquo;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Model class reference</a><ul>
+<li><a class="reference internal" href="#class-attributes">Class attributes</a><ul>
+<li><a class="reference internal" href="#convert"><tt class="docutils literal"><span class="pre">convert</span></tt></a></li>
+<li><a class="reference internal" href="#table-name"><tt class="docutils literal"><span class="pre">_table_name</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#class-properties">Class properties</a><ul>
+<li><a class="reference internal" href="#meta"><tt class="docutils literal"><span class="pre">_meta</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#class-methods">Class methods</a><ul>
+<li><a class="reference internal" href="#all"><tt class="docutils literal"><span class="pre">all</span></tt></a></li>
+<li><a class="reference internal" href="#create"><tt class="docutils literal"><span class="pre">create</span></tt></a></li>
+<li><a class="reference internal" href="#get"><tt class="docutils literal"><span class="pre">get</span></tt></a></li>
+<li><a class="reference internal" href="#select"><tt class="docutils literal"><span class="pre">select</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instance-properties">Instance properties</a><ul>
+<li><a class="reference internal" href="#pk"><tt class="docutils literal"><span class="pre">pk</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instance-methods">Instance methods</a><ul>
+<li><a class="reference internal" href="#delete"><tt class="docutils literal"><span class="pre">delete</span></tt></a></li>
+<li><a class="reference internal" href="#save"><tt class="docutils literal"><span class="pre">save</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#code-example">Code example</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="../module.html"
-                        title="previous chapter">The <em>macaron</em> module content</a></p>
+                        title="previous chapter">Module contents</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="queryset.html"
+                        title="next chapter">QuerySet reference</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="../sources/class/model.txt"
@@ -72,83 +112,175 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="the-class-contents-reference">
-<h1>The class contents reference<a class="headerlink" href="#the-class-contents-reference" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="model-class-reference">
+<h1>Model class reference<a class="headerlink" href="#model-class-reference" title="Permalink to this headline">¶</a></h1>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
 <p class="last">The reference for APIs is under construction.</p>
 </div>
 <span class="target" id="module-macaron"></span><dl class="class">
 <dt id="macaron.Model">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Model</tt><big>(</big><em>**kw</em><big>)</big><a class="headerlink" href="#macaron.Model" title="Permalink to this definition">¶</a></dt>
-<dd><p>Base model class.
-Models inherit the class.</p>
-<dl class="exception">
-<dt id="macaron.Model.DoesNotExist">
-<em class="property">exception </em><tt class="descname">DoesNotExist</tt><a class="headerlink" href="#macaron.Model.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Model</tt><a class="headerlink" href="#macaron.Model" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+<div class="section" id="class-attributes">
+<h2>Class attributes<a class="headerlink" href="#class-attributes" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="convert">
+<h3><tt class="docutils literal"><span class="pre">convert</span></tt><a class="headerlink" href="#convert" title="Permalink to this headline">¶</a></h3>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This has been not implemented yet.</p>
+</div>
+<dl class="classmethod">
+<dt id="macaron.Module.convert">
+<em class="property">classmethod </em><tt class="descclassname">Module.</tt><tt class="descname">convert</tt><big>(</big><em>cursor</em>, <em>row</em><big>)</big><a class="headerlink" href="#macaron.Module.convert" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Called when converting the raw record to object, vice versa.</p>
+</div>
+<div class="section" id="table-name">
+<h3><tt class="docutils literal"><span class="pre">_table_name</span></tt><a class="headerlink" href="#table-name" title="Permalink to this headline">¶</a></h3>
+<dl class="attribute">
+<dt id="macaron.Model._table_name">
+<tt class="descclassname">Model.</tt><tt class="descname">_table_name</tt><a class="headerlink" href="#macaron.Model._table_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>If you want to use specified table name, define this. Macaron specifies database table name from class name (ex. Member -&gt; member), automatically.</p>
+</div>
+</div>
+<div class="section" id="class-properties">
+<h2>Class properties<a class="headerlink" href="#class-properties" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="meta">
+<h3><tt class="docutils literal"><span class="pre">_meta</span></tt><a class="headerlink" href="#meta" title="Permalink to this headline">¶</a></h3>
+<dl class="attribute">
+<dt id="macaron.Model._meta">
+<tt class="descclassname">Model.</tt><tt class="descname">_meta</tt><a class="headerlink" href="#macaron.Model._meta" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="macaron.html#macaron.TableMetaInfo" title="macaron.TableMetaInfo"><tt class="xref py py-class docutils literal"><span class="pre">TableMetaInfo</span></tt></a> instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="class-methods">
+<h2>Class methods<a class="headerlink" href="#class-methods" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="all">
+<h3><tt class="docutils literal"><span class="pre">all</span></tt><a class="headerlink" href="#all" title="Permalink to this headline">¶</a></h3>
 <dl class="classmethod">
 <dt id="macaron.Model.all">
 <em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">all</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.all" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
-<dt id="macaron.Model.before_create">
-<tt class="descclassname">Model.</tt><tt class="descname">before_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_create" title="Permalink to this definition">¶</a></dt>
-<dd><p>Hook for before INSERT</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="macaron.Model.before_save">
-<tt class="descclassname">Model.</tt><tt class="descname">before_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_save" title="Permalink to this definition">¶</a></dt>
-<dd><p>Hook for before INSERT and UPDATE</p>
-</dd></dl>
-
+</div>
+<div class="section" id="create">
+<h3><tt class="docutils literal"><span class="pre">create</span></tt><a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
 <dl class="classmethod">
 <dt id="macaron.Model.create">
-<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">create</tt><big>(</big><em>**kw</em><big>)</big><a class="headerlink" href="#macaron.Model.create" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creating new record</p>
-</dd></dl>
+<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">create</tt><big>(</big><em>**kwargs</em><big>)</big><a class="headerlink" href="#macaron.Model.create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
-<dl class="method">
-<dt id="macaron.Model.delete">
-<tt class="descclassname">Model.</tt><tt class="descname">delete</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.delete" title="Permalink to this definition">¶</a></dt>
-<dd><p>Deleting the record</p>
-</dd></dl>
-
+</div>
+<div class="section" id="get">
+<h3><tt class="docutils literal"><span class="pre">get</span></tt><a class="headerlink" href="#get" title="Permalink to this headline">¶</a></h3>
 <dl class="classmethod">
 <dt id="macaron.Model.get">
-<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">get</tt><big>(</big><em>where</em>, <em>values=None</em><big>)</big><a class="headerlink" href="#macaron.Model.get" title="Permalink to this definition">¶</a></dt>
-<dd><p>Getting single result by ID</p>
+<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">get</tt><big>(</big><em>value</em><span class="optional">[</span>, <em>parameters</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.Model.get" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>value</strong> &#8211; WHERE clause or value of primary key</li>
+<li><strong>parameters</strong> (<em>list</em>) &#8211; Parameters for placeholders if WHERE clause is specified.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Model instance</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
-<dl class="method">
-<dt id="macaron.Model.get_key_value">
-<tt class="descclassname">Model.</tt><tt class="descname">get_key_value</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.get_key_value" title="Permalink to this definition">¶</a></dt>
-<dd><p>Getting value of primary key field</p>
+</div>
+<div class="section" id="select">
+<h3><tt class="docutils literal"><span class="pre">select</span></tt><a class="headerlink" href="#select" title="Permalink to this headline">¶</a></h3>
+<dl class="classmethod">
+<dt id="macaron.Model.select">
+<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">select</tt><big>(</big><em>where_clause</em><span class="optional">[</span>, <em>paramters</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.Model.select" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>where_clause</strong> &#8211; WHERE clause for SELECT</li>
+<li><strong>parameters</strong> (<em>list</em>) &#8211; Parameters for placeholders</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="queryset.html#macaron.QuerySet" title="macaron.QuerySet"><tt class="xref py py-class docutils literal"><span class="pre">QuerySet</span></tt></a> instance</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
+</div>
+</div>
+<div class="section" id="instance-properties">
+<h2>Instance properties<a class="headerlink" href="#instance-properties" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="pk">
+<h3><tt class="docutils literal"><span class="pre">pk</span></tt><a class="headerlink" href="#pk" title="Permalink to this headline">¶</a></h3>
 <dl class="attribute">
 <dt id="macaron.Model.pk">
 <tt class="descclassname">Model.</tt><tt class="descname">pk</tt><a class="headerlink" href="#macaron.Model.pk" title="Permalink to this definition">¶</a></dt>
-<dd><p>Getting value of primary key field</p>
-</dd></dl>
+<dd></dd></dl>
 
+</div>
+</div>
+<div class="section" id="instance-methods">
+<h2>Instance methods<a class="headerlink" href="#instance-methods" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="delete">
+<h3><tt class="docutils literal"><span class="pre">delete</span></tt><a class="headerlink" href="#delete" title="Permalink to this headline">¶</a></h3>
+<dl class="method">
+<dt id="macaron.Model.delete">
+<tt class="descclassname">Model.</tt><tt class="descname">delete</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="save">
+<h3><tt class="docutils literal"><span class="pre">save</span></tt><a class="headerlink" href="#save" title="Permalink to this headline">¶</a></h3>
 <dl class="method">
 <dt id="macaron.Model.save">
 <tt class="descclassname">Model.</tt><tt class="descname">save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.save" title="Permalink to this definition">¶</a></dt>
-<dd><p>Updating the record</p>
-</dd></dl>
+<dd></dd></dl>
 
-<dl class="classmethod">
-<dt id="macaron.Model.select">
-<em class="property">classmethod </em><tt class="descclassname">Model.</tt><tt class="descname">select</tt><big>(</big><em>where</em>, <em>values</em><big>)</big><a class="headerlink" href="#macaron.Model.select" title="Permalink to this definition">¶</a></dt>
-<dd><p>Getting QuerySet instance by WHERE clause</p>
-</dd></dl>
+</div>
+</div>
+<div class="section" id="code-example">
+<h2>Code example<a class="headerlink" href="#code-example" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># Creating new team and appending members</span>
+<span class="n">new_team</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Houkago Tea Time&quot;</span><span class="p">)</span>
+<span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Azusa&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Nakano&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Gt2&quot;</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Sawako&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Yamanaka&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Gt1&quot;</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">28</span><span class="p">)</span>
 
-</dd></dl>
+<span class="c"># Retrieving member, updating</span>
+<span class="n">azusa</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;first_name=?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Azusa&quot;</span><span class="p">])</span>
+<span class="n">sawako</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>  <span class="c"># Getting with ID</span>
+<span class="n">sawako</span><span class="o">.</span><span class="n">part</span> <span class="o">=</span> <span class="s">&quot;Vo&quot;</span>
+<span class="n">sawako</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>       <span class="c"># Reflecting to database</span>
 
+<span class="c"># Deleting</span>
+<span class="n">azusa</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+<span class="n">sawako</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -167,9 +299,12 @@ Models inherit the class.</p>
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="../module.html" title="The macaron module content"
+          <a href="queryset.html" title="QuerySet reference"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../module.html" title="Module contents"
              >previous</a> |</li>
-        <li><a href="../index.html">Macaron v0.1 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">Macaron v0.2 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

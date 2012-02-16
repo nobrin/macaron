@@ -1,5 +1,6 @@
-The *Macaron* class
-============================
+=============================
+ The Macaron related classes 
+=============================
 
 .. module:: macaron
 
@@ -7,7 +8,10 @@ The *Macaron* class
    :members:
    :undoc-members:
 
-.. autoclass:: TableMetaInfo
+.. autoclass:: Field
    :members:
    :undoc-members:
 
+.. autoclass:: TableMetaInfo
+   :members:
+   :undoc-members:

@@ -1,9 +1,7 @@
-The *macaron* module content
-============================
+=================
+ Module contents 
+=================
 
-.. module:: macaron
-    :platform: Unix, Windows
-    :synopsis: SQLite O/R mapper
 .. moduleauthor:: Nobuo Okazaki <nobrin@biokids.org>
 
 .. automodule:: macaron

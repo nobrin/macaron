@@ -34,8 +34,11 @@ User's Guid
 
    overview
    tutorial
+   models
    module
    class/model
+   class/queryset
+   class/macaron
 
 Indices and tables
 ==================

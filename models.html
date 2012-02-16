@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Models &mdash; Macaron v0.2 documentation</title>
+    <link rel="stylesheet" href="static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.2 documentation" href="index.html" />
+    <link rel="next" title="Module contents" href="module.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="module.html" title="Module contents"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Models</a><ul>
+<li><a class="reference internal" href="#model-definition">Model definition</a></li>
+<li><a class="reference internal" href="#using-models">Using models</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hooks">Hooks</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Tutorial</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="module.html"
+                        title="next chapter">Module contents</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/models.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-macaron">
+<span id="models"></span><h1>Models<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
+<p>A model corresponds to the table of your database. It contains relationships and behaviors of the data.</p>
+<p>The basics:</p>
+<ul class="simple">
+<li>Each model is a Python class that subclasses <a class="reference internal" href="class/model.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">macaron.Model</span></tt></a>.</li>
+<li>Each database field is represented into attribute of the model.</li>
+<li>Macaron defines attributes of the model from the table information automatically.</li>
+<li>Macaron&#8217;s model likes Django&#8217;s one.</li>
+</ul>
+<div class="section" id="model-definition">
+<h2>Model definition<a class="headerlink" href="#model-definition" title="Permalink to this headline">¶</a></h2>
+<p>This example model defines a <tt class="docutils literal"><span class="pre">Member</span></tt>, which has a <tt class="docutils literal"><span class="pre">first_name</span></tt> and <tt class="docutils literal"><span class="pre">last_name</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
+<span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The above <tt class="docutils literal"><span class="pre">Member</span></tt> model corrensponds to a database table like this:</p>
+<div class="highlight-python"><pre>CREATE TABLE member (
+    id          INTEGER PRIMARY KEY,
+    first_name  TEXT,
+    last_name   TEXT
+);</pre>
+</div>
+<p>Macaron does not create a table for simplified implementation, so attributes of the model is defined according to the table definition. In generally use, you need not modify the class definition of the model when the database table is modified.</p>
+<p>Technical notes:</p>
+<ul class="simple">
+<li>The name of the table, <tt class="docutils literal"><span class="pre">member</span></tt>, is automatically derived from class name, <tt class="docutils literal"><span class="pre">Member</span></tt>, but can be specified with <tt class="docutils literal"><span class="pre">_table_name</span></tt> property.</li>
+<li>You need <tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">TABLE</span></tt> manually.</li>
+</ul>
+</div>
+<div class="section" id="using-models">
+<h2>Using models<a class="headerlink" href="#using-models" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Permalink to this headline">¶</a></h3>
+<p>If you use a single table which has no relationship is very simple, which is described above. However, it is not a thing you hope. Macaron supports &#8220;Many-to-One&#8221; relationships and needs the field information in the class definition. See below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Team</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="n">Team</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">,</span> <span class="n">fkey</span><span class="o">=</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>These Team and Member are defined as database tables in SQL.</p>
+<div class="highlight-python"><pre>CREATE TABLE team (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT
+);
+
+CREATE TABLE member (
+    id          INTEGER PRIMARY KEY,
+    team_id     INTEGER NOT NULL,
+    first_name  TEXT,
+    last_name   TEXT,
+    age         INT
+);</pre>
+</div>
+<p>Technical notes:</p>
+<ul class="simple">
+<li>The parameters <tt class="docutils literal"><span class="pre">related_name</span></tt>, <tt class="docutils literal"><span class="pre">fkey</span></tt> (foreign key), and <tt class="docutils literal"><span class="pre">key</span></tt> of <tt class="xref py py-class docutils literal"><span class="pre">macaron.ManyToOne</span></tt> can be omitted. Then, parameters are specified as below.<ul>
+<li>The <tt class="docutils literal"><span class="pre">related_name</span></tt> is derived from <tt class="docutils literal"><span class="pre">Team</span></tt> and &#8216;_set&#8217;, i.e. &#8216;team_set&#8217;.</li>
+<li>The <tt class="docutils literal"><span class="pre">fkey</span></tt> is specified as <tt class="docutils literal"><span class="pre">Team</span></tt>&#8216;s table name and &#8216;_id&#8217;, i.e. &#8216;team_id&#8217;.</li>
+<li>The <tt class="docutils literal"><span class="pre">key</span></tt> is specified as <tt class="docutils literal"><span class="pre">Team</span></tt>&#8216;s primary key name, i.e. &#8216;id&#8217;.</li>
+</ul>
+</li>
+</ul>
+<p>In this example, a Many-to-One relationship which represents that a <tt class="docutils literal"><span class="pre">Member</span></tt> has a <tt class="docutils literal"><span class="pre">Team</span></tt> &#8211; means a <tt class="docutils literal"><span class="pre">Member</span></tt> belongs to a <tt class="docutils literal"><span class="pre">Team</span></tt> but each <tt class="docutils literal"><span class="pre">Member</span></tt> only belongs to one <tt class="docutils literal"><span class="pre">Team</span></tt> &#8211; is defined as above.</p>
+<p>Tha attribute <tt class="docutils literal"><span class="pre">team</span></tt> of <tt class="docutils literal"><span class="pre">Member</span></tt> class relate the <tt class="docutils literal"><span class="pre">Member</span></tt> and <tt class="docutils literal"><span class="pre">Team</span></tt>. This definition also create <em>recursive relationships</em> (an object with a Many-to-One relationship to itself), automatically. If you want to call the field to another name, you can it.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">belongs_to</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="n">Team</span><span class="p">,</span> <span class="n">fkey</span><span class="o">=</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="hooks">
+<h2>Hooks<a class="headerlink" href="#hooks" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>before_create</li>
+<li>before_save</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="module.html" title="Module contents"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             >previous</a> |</li>
+        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
