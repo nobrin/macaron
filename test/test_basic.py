@@ -47,7 +47,7 @@ class TestMacaron(unittest.TestCase):
     ]
 
     def setUp(self):
-        macaron.macaronage(dbfile=DB_FILE)
+        macaron.macaronage(dbfile=DB_FILE, lazy=True, history=10)
         macaron.execute(sql_t_team)
         macaron.execute(sql_t_member)
 

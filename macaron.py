@@ -29,25 +29,30 @@ __license__ = "MIT License"
 import sqlite3
 import re
 import copy
+import logging
 
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 
 # --- Module methods
-def macaronage(dbfile=":memory:", lazy=False, connection=None, autocommit=False):
+def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=None):
     """Initializes macaron.
     This sets Macaron instance to module global variable *_m* (don't access directly).
     If *lazy* is ``True``, :class:`LazyConnection` object is used for connection, which
-    will connect to the DB when using. If *autocommit* is ``True``, this will
-    commits when this object will be unloaded.
+    will connect to the DB when using. If *autocommit* is ``True``, this will commits
+    when this object will be unloaded.
     """
     globals()["_m"] = Macaron()
     conn = None
-    if connection:
-        conn = connection
-    else:
-        if lazy: conn = LazyConnection(dbfile)
-        else: conn = sqlite3.connect(dbfile)
+    if history != None:
+        logger = logger or logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        _m.sql_logger = ArrayHandler(history)
+        logger.addHandler(_m.sql_logger)
+    if logger: kw = {"factory": _create_wrapper(logger)}
+    else: kw = {}
+    if lazy: conn = LazyConnection(dbfile, **kw)
+    else: conn = sqlite3.connect(dbfile, **kw)
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
     _m.autocommit = autocommit
@@ -65,6 +70,14 @@ def bake():
 def rollback(): _m.connection["default"].rollback()
 def db_close(): _m.connection["default"].close()
 
+def get_history(start, end=None):
+    """Returns history of SQL execution.
+    If ``start`` and ``end`` are specified returns list of history (0 is latest). Only
+    ``start`` is specified returns a record.
+    """
+    if end: return _m.history[start:end]
+    return _m.history[start]
+
 # Classes
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
@@ -72,6 +85,7 @@ class Macaron(object):
         #: ``dict`` object holds :class:`sqlite3.Connection`
         self.connection = {}
         self.used_by = []
+        self.sql_logger = None
 
     def __del__(self):
         """Closing the connections"""
@@ -83,11 +97,44 @@ class Macaron(object):
             self.used_by.pop(0).table_meta = None
 
         for k in self.connection.keys():
+            if self.autocommit: self.connection[k].commit()
             self.connection[k].close()
 
     def get_connection(self, meta_obj):
         self.used_by.append(meta_obj)
         return self.connection[meta_obj.conn_name]
+
+    def _get_history(self):
+        if not self.sql_logger:
+            raise RuntimeError("SQL history is disabled. Use macaronage() with 'history' parameter.")
+        return self.sql_logger.history
+    history = property(_get_history)
+
+# --- for database logging
+class ArrayHandler(logging.Handler):
+    def __init__(self, max_count=100):
+        logging.Handler.__init__(self, logging.DEBUG)
+        self.history = []
+        self.max_count = max_count
+
+    def emit(self, record):
+        if len(self.history) >= self.max_count: self.history.pop()
+        self.history.insert(0, record.getMessage())
+
+def _create_wrapper(logger):
+    class ConnectionWrapper(sqlite3.Connection):
+        def cursor(self):
+            self.logger = logger
+            return super(ConnectionWrapper, self).cursor(CursorWrapper)
+    return ConnectionWrapper
+
+class CursorWrapper(sqlite3.Cursor):
+    def execute(self, sql, parameters=[]):
+        if self.connection.logger:
+            self.connection.logger.debug("%s\nparams: %s" % (sql, str(parameters)))
+        self.lastsql = sql
+        self.lastparams = str(parameters)
+        return super(CursorWrapper, self).execute(sql, parameters)
 
 class LazyConnection(object):
     """Lazy connection wrapper"""
@@ -495,9 +542,11 @@ class MacaronPlugin(object):
                 if autocommit: bake()   # commit
             except sqlite3.IntegrityError, e:
                 rollback()
-                raise
-            finally:
-                db_close()
+                try:
+                    import bottle
+                    raise bottle.HTTPError(500, "Database Error", e)
+                except ImportError:
+                    raise
             return ret_value
         return wrapper
 
