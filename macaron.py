@@ -495,7 +495,7 @@ class MacaronPlugin(object):
                 if autocommit: bake()   # commit
             except sqlite3.IntegrityError, e:
                 rollback()
-                raise HTTPError(500, "Database Error", e)
+                raise
             finally:
                 db_close()
             return ret_value
