@@ -26,8 +26,8 @@ Example::
     >>> macaron.db_close()
 
 
-User's Guid
-===========
+User's Guide
+============
 
 .. toctree::
    :maxdepth: 2
