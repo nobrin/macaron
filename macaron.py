@@ -36,6 +36,7 @@ import datetime
 
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
+class ValidationError(Exception): pass
 
 # --- Module global attributes
 _m = None       # Macaron object
@@ -173,22 +174,24 @@ class LazyConnection(object):
         self._conn = None
 
     def __getattr__(self, name):
-        if not self._conn and (name in ["commit", "rollback", "close"]): return
+        if not self._conn and (name in ["commit", "rollback", "close"]): return self.noop
         self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
         return getattr(self._conn, name)
 
-class Fields(list):
-    """Field collection"""
+    def noop(self): return
+
+class FieldInfoCollection(list):
+    """FieldInfo collection"""
     def __init__(self):
         self._field_dict = {}
 
     def append(self, fld):
-        super(Fields, self).append(fld)
+        super(FieldInfoCollection, self).append(fld)
         self._field_dict[fld.name] = fld
 
     def __getitem__(self, name): return self._field_dict[name]
 
-class Field(object):
+class FieldInfo(object):
     """Field information class
 
        :param row: tuple got from 'PRAGMA table_info(``table_name``)'
@@ -204,6 +207,7 @@ class Field(object):
     def __init__(self, row):
         self.cid, self.name, self.type, \
             self.not_null, self.default, self.is_primary_key = row
+        self.converter = None
         if re.match(r"^BOOLEAN$", self.type, re.I):
             self.default = bool(re.match(r"^TRUE$", self.default, re.I))
 
@@ -242,7 +246,7 @@ class TableMetaInfo(object):
     def __init__(self, conn, table_name):
         self._conn = conn   # Connection for the table
         #: Table fields collection
-        self.fields = Fields()
+        self.fields = FieldInfoCollection()
         #: Primary key :class:`Field`
         self.primary_key = None
         #: Table name
@@ -250,8 +254,8 @@ class TableMetaInfo(object):
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
         for row in rows:
-            fld = Field(row)
-            self.fields.append(Field(row))
+            fld = FieldInfo(row)
+            self.fields.append(FieldInfo(row))
             if fld.is_primary_key: self.primary_key = fld
 
 class ManyToOne(property):
@@ -425,17 +429,18 @@ class ManyToOneRevSet(QuerySet):
         return self.cls.create(*args, **kw)
 
 # --- Field converters
-class ConvertAt(object):
-    def to_database(self, value): return value
-    def from_database(self, value): return value
+class Field(object):
+    def set(self, obj, value): return value         # sets value
+    def to_database(self, obj, value): return value # convert object to database
+    def to_object(self, row, value): return value   # convert object from database
+    def validate(self, obj, value): return True     # validate
 
-class AtCreate(ConvertAt): pass
-class AtSave(ConvertAt): pass
+class AtCreate(Field): pass
+class AtSave(Field): pass
 class NowAtCreate(AtCreate):
-    def to_database(self, value): return datetime.datetime.now()
-
+    def set(self, obj, value): return datetime.datetime.now()
 class NowAtSave(AtCreate, AtSave):
-    def to_database(self, value): return datetime.datetime.now()
+    def set(self, obj, value): return datetime.datetime.now()
 
 class ModelMeta(type):
     """Meta class for Model class"""
@@ -472,7 +477,11 @@ class Model(object):
 
     @classmethod
     def _factory(cls, cur, row):
+        """Convert raw values to object"""
         h = dict([[d[0], row[i]] for i, d in enumerate(cur.description)])
+        for fld in cls._meta.fields:
+            if hasattr(cls, fld.name) and isinstance(getattr(cls, fld.name), Field):
+                h[fld.name] = getattr(cls, fld.name).to_object(sqlite3.Row(cur, row), h[fld.name])
         return cls(**h)
 
     @classmethod
@@ -497,8 +506,10 @@ class Model(object):
         for fld in cls._meta.fields:
             if fld.is_primary_key and not getattr(obj, fld.name): continue
             names.append(fld.name)
-        Model._before_before_store(obj, AtCreate)
+        Model._before_before_store(obj, "set", AtCreate)            # set value
         obj.before_create()
+        obj.validate()
+        Model._before_before_store(obj, "to_database", Field)   # convert object to database
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
         sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._meta.table_name, ", ".join(names), holder)
@@ -514,8 +525,10 @@ class Model(object):
             if fld.is_primary_key: continue
             names.append(fld.name)
         holder = ", ".join(["%s = ?" % n for n in names])
-        Model._before_before_store(self, AtSave)
+        Model._before_before_store(self, "set", AtSave) # set value
+        self.validate()
         self.before_save()
+        Model._before_before_store(self, "to_database", Field)  # convert object to database
         values = [getattr(self, n) for n in names]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
         cls._save_and_update_object(self, sql, values + [self.pk])
@@ -537,30 +550,29 @@ class Model(object):
         cls._meta._conn.cursor().execute(sql, [self.pk])
 
     @staticmethod
-    def _before_before_store(obj, at_cls):
+    def _before_before_store(obj, meth_name, at_cls):
         cls = obj.__class__
-        for fld in cls._meta.fields:
-            if hasattr(cls, fld.name) and isinstance(getattr(cls, fld.name), at_cls):
-                setattr(obj, fld.name, getattr(cls, fld.name).to_database(getattr(obj, fld.name)))
+        # set value with at_cls object
+        for fld in filter(lambda f: hasattr(cls, f.name), cls._meta.fields):
+            if isinstance(getattr(cls, fld.name), at_cls):
+                converter = getattr(getattr(cls, fld.name), meth_name)
+                setattr(obj, fld.name, converter(cls, getattr(obj, fld.name)))
+
+    def validate(self):
+        cls = self.__class__
+        for fld in filter(lambda f: hasattr(cls, f.name), cls._meta.fields):
+            if isinstance(getattr(cls, fld.name), Field):
+                value = getattr(self, fld.name)
+                if not getattr(cls, fld.name).validate(self, value):
+                    raise ValidationError("%s.%s is invalid value. '%s'" % (cls.__name__, fld.name, str(value)))
 
     # These hooks are triggered at Model.create() and Model#save().
     # Model.create(): before_create -> INSERT -> after_create
     # Model#save()  : bofore_save -> UPDATE -> after_save
-    def before_create(self):
-        """Hook for before INSERT"""
-        pass
-
-    def before_save(self):
-        """Hook for before UPDATE"""
-        pass
-
-    def after_create(self):
-        """Hook for after INSERT"""
-        pass
-
-    def after_save(self):
-        """Hook for after UPDATE"""
-        pass
+    def before_create(self): pass   # Called before INSERT
+    def before_save(self): pass     # Called before UPDATE
+    def after_create(self): pass    # Called after INSERT
+    def after_save(self): pass      # Called after UPDATE
 
     def __repr__(self):
         return "<%s object %s>" % (self.__class__.__name__, self.pk)
@@ -583,6 +595,7 @@ class MacaronPlugin(object):
         dbfile = conf.get("dbfile", self.dbfile)
         autocommit = conf.get("autocommit", self.autocommit)
 
+        import traceback as tb
         def wrapper(*args, **kwargs):
             macaronage(dbfile, lazy=True)
             try:
@@ -597,7 +610,7 @@ class MacaronPlugin(object):
                         traceback = (history.lastsql, history.lastparams)
                         sqllog = "[Macaron]LastSQL: %s\n[Macaron]Params : %s\n" % traceback
                         bottle.request.environ["wsgi.errors"].write(sqllog)
-                    raise bottle.HTTPError(500, "Database Error", e, traceback)
+                    raise bottle.HTTPError(500, "Database Error", e, tb.format_exc())
                 except ImportError:
                     raise e
             return ret_value
