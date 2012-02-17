@@ -16,6 +16,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
+	@echo "  gh-pages   to make standalone HTML files for gh-pages"
 	@echo "  html       to make standalone HTML files"
 	@echo "  dirhtml    to make HTML files named index.html in directories"
 	@echo "  singlehtml to make a single large HTML file"
@@ -35,6 +36,17 @@ help:
 
 clean:
 	-rm -rf $(BUILDDIR)/*
+
+gh-pages:
+	@echo
+	@echo "Building document as gh-pages in $(BUILDDIR)/html"
+	mkdir -p $(BUILDDIR)/html
+	cp -af ../../macaron/.git $(BUILDDIR)/html
+	cd $(BUILDDIR)/html; git checkout gh-pages
+	$(SPHINXBUILD) -a -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+	@echo "If you need, please push the documents."
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
