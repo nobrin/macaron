@@ -25,12 +25,29 @@ class TestHistoryLogger(unittest.TestCase):
     def testLogger(self):
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
-        sql_logger = macaron.ArrayHandler(10)
+        sql_logger = macaron.ListHandler(10)
         logger.addHandler(sql_logger)
 
         conn = sqlite3.connect(DB_FILE, factory=macaron._create_wrapper(logger))
         conn.execute(sql_t_test)
-        print sql_logger.history[0]
+        self.assertEqual(sql_logger[0], "%s\nparams: []" % sql_t_test)
+        conn.close()
+
+    def testMacaronOption_disabled(self):
+        macaron.macaronage(DB_FILE)
+        chk = False
+        try: macaron.history[0]
+        except RuntimeError: chk = True
+        self.assert_(chk, "'SQL history is disabled' error has not raised")
+        macaron.cleanup()
+
+    def testMacaronOption_index(self):
+        macaron.macaronage(DB_FILE, history=10)
+        chk = False
+        try: macaron.history[0]
+        except IndexError: chk = True
+        self.assert_(chk, "Index Error is not raised.")
+        macaron.cleanup()
 
 if __name__ == "__main__":
     unittest.main()

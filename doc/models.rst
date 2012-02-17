@@ -17,6 +17,9 @@ The basics:
 Model definition
 ================
 
+Basic usage
+-----------
+
 This example model defines a ``Member``, which has a ``first_name`` and ``last_name``:
 
 ::
@@ -31,7 +34,8 @@ The above ``Member`` model corrensponds to a database table like this:
     CREATE TABLE member (
         id          INTEGER PRIMARY KEY,
         first_name  TEXT,
-        last_name   TEXT
+        last_name   TEXT,
+        joined      TIMESTAMP
     );
 
 Macaron does not create a table for simplified implementation, so attributes of the model is defined according to the table definition. In generally use, you need not modify the class definition of the model when the database table is modified.
@@ -40,6 +44,22 @@ Technical notes:
 
 - The name of the table, ``member``, is automatically derived from class name, ``Member``, but can be specified with ``_table_name`` property.
 - You need ``CREATE TABLE`` manually.
+
+Auto updating (EXPERIMENTAL)
+----------------------------
+
+.. warning::
+
+   This function is experimental implementation. It may be changed in future release.
+
+You can specify fields which need to update at ``INSERT`` or ``UPDATE``. For example, the member table in above has ``joined`` field which means created time. In the situation, you define ``Member`` like this.
+
+::
+
+    class Member(macaron.Model):
+        joined = macaron.NowAtCreate()
+
+When you create a new member, *Macaron* set the created time to ``joined`` field. In addition, you can specified :class:`NowAtSave` for ``UPDATE``.
 
 
 Using models

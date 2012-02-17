@@ -10,7 +10,7 @@ Bottle web framework through plugin mechanism.
 Example::
 
     >>> import macaron
-    >>> macaron.macaronage(dbfile="members.db")
+    >>> macaron.macaronage("members.db")
     >>> team = Team.create(name="Houkago Tea Time")
     >>> team.members.append(name="Ritsu", part="Dr")
     <Member object 1>
@@ -21,6 +21,8 @@ Example::
     ...
     <Member 'Ritsu : Dr'>
     <Member 'Mio : Ba'>
+    >>> macaron.bake()
+    >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
 __version__ = "0.2.1-dev"
@@ -30,53 +32,61 @@ import sqlite3
 import re
 import copy
 import logging
+import datetime
 
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 
+# --- Module global attributes
+_m = None       # Macaron object
+history = None  #: Returns history of SQL execution. You can get history like a list (index:0 is latest).
+
 # --- Module methods
-def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=None):
-    """Initializes macaron.
+def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1):
+    """
+    :param dbfile: SQLite database file name.
+    :param lazy: Uses :class:`LazyConnection`.
+    :param autocommit: Commits automatically when closing database.
+    :param logger: Uses for logging SQL execution.
+    :param history: Set max count of SQL execution history (0 is unlimited, -1 is disabled).
+                    Default: disabled
+    :type logger: :class:`logging.Logger`
+
+    Initializes macaron.
     This sets Macaron instance to module global variable *_m* (don't access directly).
     If *lazy* is ``True``, :class:`LazyConnection` object is used for connection, which
     will connect to the DB when using. If *autocommit* is ``True``, this will commits
     when this object will be unloaded.
     """
     globals()["_m"] = Macaron()
+    globals()["history"] = ListHandler(-1)
     conn = None
-    if history != None:
+    if history >= 0: # enable history logger
         logger = logger or logging.getLogger()
         logger.setLevel(logging.DEBUG)
-        _m.sql_logger = ArrayHandler(history)
-        logger.addHandler(_m.sql_logger)
-    if logger: kw = {"factory": _create_wrapper(logger)}
-    else: kw = {}
-    if lazy: conn = LazyConnection(dbfile, **kw)
-    else: conn = sqlite3.connect(dbfile, **kw)
+        globals()["history"].set_max_count(history)
+        logger.addHandler(globals()["history"])
+    if lazy: conn = LazyConnection(dbfile, factory=_create_wrapper(logger))
+    else: conn = sqlite3.connect(dbfile, factory=_create_wrapper(logger))
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
     _m.autocommit = autocommit
 
 def execute(*args, **kw):
-    """Executes ``sqlite3.Cursor#execute()``.
-    This calls ``sqlite3.Cursor#execute()``.
-    """
+    """Wrapper for ``Cursor#execute()``."""
     return _m.connection["default"].cursor().execute(*args, **kw)
 
 def bake():
     """Commits the database."""
     _m.connection["default"].commit()
 
-def rollback(): _m.connection["default"].rollback()
-def db_close(): _m.connection["default"].close()
+def rollback():
+    """Rollbacks the database."""
+    _m.connection["default"].rollback()
 
-def get_history(start, end=None):
-    """Returns history of SQL execution.
-    If ``start`` and ``end`` are specified returns list of history (0 is latest). Only
-    ``start`` is specified returns a record.
-    """
-    if end: return _m.history[start:end]
-    return _m.history[start]
+def cleanup():
+    """Closes database and tidies up Macaron"""
+    _m = None
 
 # Classes
 class Macaron(object):
@@ -104,22 +114,39 @@ class Macaron(object):
         self.used_by.append(meta_obj)
         return self.connection[meta_obj.conn_name]
 
-    def _get_history(self):
-        if not self.sql_logger:
-            raise RuntimeError("SQL history is disabled. Use macaronage() with 'history' parameter.")
-        return self.sql_logger.history
-    history = property(_get_history)
-
 # --- for database logging
-class ArrayHandler(logging.Handler):
+class ListHandler(logging.Handler):
+    """SQL history listing handler for ``logging``.
+
+       :param max_count: max count of SQL history (0 is unlimited, -1 is disabled)
+    """
     def __init__(self, max_count=100):
         logging.Handler.__init__(self, logging.DEBUG)
-        self.history = []
-        self.max_count = max_count
+        self.lastsql = None
+        self.lastparams = None
+        self._max_count = max_count
+        self._list = []
 
     def emit(self, record):
-        if len(self.history) >= self.max_count: self.history.pop()
-        self.history.insert(0, record.getMessage())
+        if self._max_count < 0: return
+        if self._max_count > 0:
+            while len(self._list) >= self._max_count: self._list.pop()
+        self._list.insert(0, record.getMessage())
+
+    def _get_max_count(self): return self._max_count
+
+    def set_max_count(self, max_count):
+        self._max_count = max_count
+        if max_count > 0:
+            while len(self._list) > self._max_count: self._list.pop()
+    max_count = property(_get_max_count)
+
+    def count(self): return len(self._list)
+    def __getitem__(self, idx):
+        if self._max_count < 0:
+            raise RuntimeError("SQL history is disabled. Use macaronage() with 'history' parameter.")
+        if len(self._list) <= idx: raise IndexError("SQL history max_count is %d." % len(self._list))
+        return self._list.__getitem__(idx)
 
 def _create_wrapper(logger):
     class ConnectionWrapper(sqlite3.Connection):
@@ -129,11 +156,13 @@ def _create_wrapper(logger):
     return ConnectionWrapper
 
 class CursorWrapper(sqlite3.Cursor):
+    """Subclass of sqlite3.Cursor for logging"""
     def execute(self, sql, parameters=[]):
         if self.connection.logger:
             self.connection.logger.debug("%s\nparams: %s" % (sql, str(parameters)))
-        self.lastsql = sql
-        self.lastparams = str(parameters)
+        if(isinstance(history, ListHandler)):
+            history.lastsql = sql
+            history.lastparams = parameters
         return super(CursorWrapper, self).execute(sql, parameters)
 
 class LazyConnection(object):
@@ -144,12 +173,9 @@ class LazyConnection(object):
         self._conn = None
 
     def __getattr__(self, name):
+        if not self._conn and (name in ["commit", "rollback", "close"]): return
         self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
         return getattr(self._conn, name)
-
-    def commit(self):   return
-    def rollback(self): return
-    def close(self):    return
 
 class Fields(list):
     """Field collection"""
@@ -398,6 +424,19 @@ class ManyToOneRevSet(QuerySet):
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
+# --- Field converters
+class ConvertAt(object):
+    def to_database(self, value): return value
+    def from_database(self, value): return value
+
+class AtCreate(ConvertAt): pass
+class AtSave(ConvertAt): pass
+class NowAtCreate(AtCreate):
+    def to_database(self, value): return datetime.datetime.now()
+
+class NowAtSave(AtCreate, AtSave):
+    def to_database(self, value): return datetime.datetime.now()
+
 class ModelMeta(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
@@ -458,6 +497,7 @@ class Model(object):
         for fld in cls._meta.fields:
             if fld.is_primary_key and not getattr(obj, fld.name): continue
             names.append(fld.name)
+        Model._before_before_store(obj, AtCreate)
         obj.before_create()
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
@@ -474,6 +514,7 @@ class Model(object):
             if fld.is_primary_key: continue
             names.append(fld.name)
         holder = ", ".join(["%s = ?" % n for n in names])
+        Model._before_before_store(self, AtSave)
         self.before_save()
         values = [getattr(self, n) for n in names]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
@@ -494,6 +535,13 @@ class Model(object):
         cls = self.__class__
         sql = "DELETE FROM %s WHERE %s = ?" % (cls._meta.table_name, cls._meta.primary_key.name)
         cls._meta._conn.cursor().execute(sql, [self.pk])
+
+    @staticmethod
+    def _before_before_store(obj, at_cls):
+        cls = obj.__class__
+        for fld in cls._meta.fields:
+            if hasattr(cls, fld.name) and isinstance(getattr(cls, fld.name), at_cls):
+                setattr(obj, fld.name, getattr(cls, fld.name).to_database(getattr(obj, fld.name)))
 
     # These hooks are triggered at Model.create() and Model#save().
     # Model.create(): before_create -> INSERT -> after_create
@@ -536,7 +584,7 @@ class MacaronPlugin(object):
         autocommit = conf.get("autocommit", self.autocommit)
 
         def wrapper(*args, **kwargs):
-            macaronage(dbfile=dbfile, lazy=True)
+            macaronage(dbfile, lazy=True)
             try:
                 ret_value = callback(*args, **kwargs)
                 if autocommit: bake()   # commit
@@ -544,11 +592,14 @@ class MacaronPlugin(object):
                 rollback()
                 try:
                     import bottle
-                    raise bottle.HTTPError(500, "Database Error", e)
+                    traceback = None
+                    if bottle.DEBUG:
+                        traceback = (history.lastsql, history.lastparams)
+                        sqllog = "[Macaron]LastSQL: %s\n[Macaron]Params : %s\n" % traceback
+                        bottle.request.environ["wsgi.errors"].write(sqllog)
+                    raise bottle.HTTPError(500, "Database Error", e, traceback)
                 except ImportError:
-                    raise
+                    raise e
             return ret_value
         return wrapper
 
-# This is a module global variable '_m' having Macaron object.
-_m = None
