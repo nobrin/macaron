@@ -34,6 +34,7 @@ User's Guide
 
    overview
    tutorial
+   bottle
    models
    module
    class/model

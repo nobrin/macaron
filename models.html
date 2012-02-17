@@ -7,13 +7,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Models &mdash; Macaron v0.2 documentation</title>
+    <title>Models &mdash; Macaron v0.3.0-dev documentation</title>
     <link rel="stylesheet" href="static/macaron.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.2',
+        VERSION:     '0.3.0-dev',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -22,9 +22,9 @@
     <script type="text/javascript" src="static/jquery.js"></script>
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
-    <link rel="top" title="Macaron v0.2 documentation" href="index.html" />
+    <link rel="top" title="Macaron v0.3.0-dev documentation" href="index.html" />
     <link rel="next" title="Module contents" href="module.html" />
-    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+    <link rel="prev" title="Macaron with Bottle web framework" href="bottle.html" /> 
   </head>
   <body>
     <div class="related">
@@ -40,17 +40,24 @@
           <a href="module.html" title="Module contents"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="tutorial.html" title="Tutorial"
+          <a href="bottle.html" title="Macaron with Bottle web framework"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="static/macaron_logo.png" alt="Logo"/>
+            </a></p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Models</a><ul>
-<li><a class="reference internal" href="#model-definition">Model definition</a></li>
+<li><a class="reference internal" href="#model-definition">Model definition</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#auto-updating-experimental">Auto updating (EXPERIMENTAL)</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#using-models">Using models</a><ul>
 <li><a class="reference internal" href="#relationships">Relationships</a></li>
 </ul>
@@ -61,8 +68,8 @@
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="tutorial.html"
-                        title="previous chapter">Tutorial</a></p>
+  <p class="topless"><a href="bottle.html"
+                        title="previous chapter">Macaron with Bottle web framework</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="module.html"
                         title="next chapter">Module contents</a></p>
@@ -104,6 +111,8 @@
 </ul>
 <div class="section" id="model-definition">
 <h2>Model definition<a class="headerlink" href="#model-definition" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="basic-usage">
+<h3>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h3>
 <p>This example model defines a <tt class="docutils literal"><span class="pre">Member</span></tt>, which has a <tt class="docutils literal"><span class="pre">first_name</span></tt> and <tt class="docutils literal"><span class="pre">last_name</span></tt>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
 <span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
@@ -113,7 +122,8 @@
 <div class="highlight-python"><pre>CREATE TABLE member (
     id          INTEGER PRIMARY KEY,
     first_name  TEXT,
-    last_name   TEXT
+    last_name   TEXT,
+    joined      TIMESTAMP
 );</pre>
 </div>
 <p>Macaron does not create a table for simplified implementation, so attributes of the model is defined according to the table definition. In generally use, you need not modify the class definition of the model when the database table is modified.</p>
@@ -122,6 +132,20 @@
 <li>The name of the table, <tt class="docutils literal"><span class="pre">member</span></tt>, is automatically derived from class name, <tt class="docutils literal"><span class="pre">Member</span></tt>, but can be specified with <tt class="docutils literal"><span class="pre">_table_name</span></tt> property.</li>
 <li>You need <tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">TABLE</span></tt> manually.</li>
 </ul>
+</div>
+<div class="section" id="auto-updating-experimental">
+<h3>Auto updating (EXPERIMENTAL)<a class="headerlink" href="#auto-updating-experimental" title="Permalink to this headline">¶</a></h3>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This function is experimental implementation. It may be changed in future release.</p>
+</div>
+<p>You can specify fields which need to update at <tt class="docutils literal"><span class="pre">INSERT</span></tt> or <tt class="docutils literal"><span class="pre">UPDATE</span></tt>. For example, the member table in above has <tt class="docutils literal"><span class="pre">joined</span></tt> field which means created time. In the situation, you define <tt class="docutils literal"><span class="pre">Member</span></tt> like this.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">joined</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">NowAtCreate</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>When you create a new member, <em>Macaron</em> set the created time to <tt class="docutils literal"><span class="pre">joined</span></tt> field. In addition, you can specified <tt class="xref py py-class docutils literal"><span class="pre">NowAtSave</span></tt> for <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</p>
+</div>
 </div>
 <div class="section" id="using-models">
 <h2>Using models<a class="headerlink" href="#using-models" title="Permalink to this headline">¶</a></h2>
@@ -193,9 +217,9 @@ CREATE TABLE member (
           <a href="module.html" title="Module contents"
              >next</a> |</li>
         <li class="right" >
-          <a href="tutorial.html" title="Tutorial"
+          <a href="bottle.html" title="Macaron with Bottle web framework"
              >previous</a> |</li>
-        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

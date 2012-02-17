@@ -2,6 +2,10 @@
  The Macaron related classes 
 =============================
 
+.. warning::
+
+   Generally, these classes should not be used by user directly.
+
 .. module:: macaron
 
 .. autoclass:: Macaron

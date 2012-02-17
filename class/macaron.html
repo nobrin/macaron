@@ -7,13 +7,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>The Macaron related classes &mdash; Macaron v0.2 documentation</title>
+    <title>The Macaron related classes &mdash; Macaron v0.3.0-dev documentation</title>
     <link rel="stylesheet" href="../static/macaron.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '0.2',
+        VERSION:     '0.3.0-dev',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -22,7 +22,7 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
-    <link rel="top" title="Macaron v0.2 documentation" href="../index.html" />
+    <link rel="top" title="Macaron v0.3.0-dev documentation" href="../index.html" />
     <link rel="prev" title="QuerySet reference" href="queryset.html" /> 
   </head>
   <body>
@@ -38,11 +38,14 @@
         <li class="right" >
           <a href="queryset.html" title="QuerySet reference"
              accesskey="P">previous</a> |</li>
-        <li><a href="../index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../static/macaron_logo.png" alt="Logo"/>
+            </a></p>
   <h4>Previous topic</h4>
   <p class="topless"><a href="queryset.html"
                         title="previous chapter">QuerySet reference</a></p>
@@ -72,9 +75,13 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="module-macaron">
-<span id="the-macaron-related-classes"></span><h1>The Macaron related classes<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
-<dl class="class">
+  <div class="section" id="the-macaron-related-classes">
+<h1>The Macaron related classes<a class="headerlink" href="#the-macaron-related-classes" title="Permalink to this headline">¶</a></h1>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Generally, these classes should not be used by user directly.</p>
+</div>
+<span class="target" id="module-macaron"></span><dl class="class">
 <dt id="macaron.Macaron">
 <em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Macaron</tt><a class="headerlink" href="#macaron.Macaron" title="Permalink to this definition">¶</a></dt>
 <dd><p>Macaron controller class. Do not instance this class by user.</p>
@@ -93,29 +100,25 @@
 
 <dl class="class">
 <dt id="macaron.Field">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Field</tt><big>(</big><em>row</em><big>)</big><a class="headerlink" href="#macaron.Field" title="Permalink to this definition">¶</a></dt>
-<dd><p>Field information class</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>row</strong> (<em>tuple</em>) &#8211; tuple got from &#8216;PRAGMA table_info(<tt class="docutils literal"><span class="pre">table_name</span></tt>)&#8217;</td>
-</tr>
-</tbody>
-</table>
-<dl class="attribute">
-<dt id="macaron.Field.cid">
-<tt class="descname">cid</tt><a class="headerlink" href="#macaron.Field.cid" title="Permalink to this definition">¶</a></dt>
-<dt id="macaron.Field.name">
-<tt class="descname">name</tt><a class="headerlink" href="#macaron.Field.name" title="Permalink to this definition">¶</a></dt>
-<dt id="macaron.Field.type">
-<tt class="descname">type</tt><a class="headerlink" href="#macaron.Field.type" title="Permalink to this definition">¶</a></dt>
-<dt id="macaron.Field.not_null">
-<tt class="descname">not_null</tt><a class="headerlink" href="#macaron.Field.not_null" title="Permalink to this definition">¶</a></dt>
-<dt id="macaron.Field.default">
-<tt class="descname">default</tt><a class="headerlink" href="#macaron.Field.default" title="Permalink to this definition">¶</a></dt>
-<dt id="macaron.Field.is_primary_key">
-<tt class="descname">is_primary_key</tt><a class="headerlink" href="#macaron.Field.is_primary_key" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Field</tt><a class="headerlink" href="#macaron.Field" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="macaron.Field.set">
+<tt class="descname">set</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Field.to_database">
+<tt class="descname">to_database</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.to_database" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Field.to_object">
+<tt class="descname">to_object</tt><big>(</big><em>row</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.to_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Field.validate">
+<tt class="descname">validate</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.validate" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -167,7 +170,7 @@ table information with <tt class="docutils literal"><span class="pre">Bookmark._
         <li class="right" >
           <a href="queryset.html" title="QuerySet reference"
              >previous</a> |</li>
-        <li><a href="../index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

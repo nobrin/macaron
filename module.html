@@ -7,13 +7,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Module contents &mdash; Macaron v0.2 documentation</title>
+    <title>Module contents &mdash; Macaron v0.3.0-dev documentation</title>
     <link rel="stylesheet" href="static/macaron.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.2',
+        VERSION:     '0.3.0-dev',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -22,7 +22,7 @@
     <script type="text/javascript" src="static/jquery.js"></script>
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
-    <link rel="top" title="Macaron v0.2 documentation" href="index.html" />
+    <link rel="top" title="Macaron v0.3.0-dev documentation" href="index.html" />
     <link rel="next" title="Model class reference" href="class/model.html" />
     <link rel="prev" title="Models" href="models.html" /> 
   </head>
@@ -42,11 +42,32 @@
         <li class="right" >
           <a href="models.html" title="Models"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="static/macaron_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Module contents</a><ul>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-attributes">Module attributes</a></li>
+<li><a class="reference internal" href="#module-methods">Module methods</a></li>
+<li><a class="reference internal" href="#logging">Logging</a><ul>
+<li><a class="reference internal" href="#sql-logging">SQL logging</a></li>
+<li><a class="reference internal" href="#using-custom-logger">Using custom logger</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="models.html"
                         title="previous chapter">Models</a></p>
@@ -79,51 +100,125 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="module-macaron">
-<span id="module-contents"></span><h1>Module contents<a class="headerlink" href="#module-macaron" title="Permalink to this headline">¶</a></h1>
-<p><em>Macaron</em> is a small and simple object-relational mapper (ORM) for SQLite and
-Python. It is distributed as a single file module which has no dependencies
-other than the Python Standard Library.</p>
-<p><em>Macaron</em> provides easy access methods to SQLite database. And it supports
-Bottle web framework through plugin mechanism.</p>
-<p>Example:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">macaron</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="n">dbfile</span><span class="o">=</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">team</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Houkago Tea Time&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Ritsu&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Dr&quot;</span><span class="p">)</span>
-<span class="go">&lt;Member object 1&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">mio</span> <span class="o">=</span> <span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Mio&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Ba&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">mio</span>
-<span class="go">&lt;Member &#39;Mio : Ba&#39;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">team</span><span class="o">.</span><span class="n">members</span><span class="p">:</span> <span class="k">print</span> <span class="n">member</span>
-<span class="gp">...</span>
-<span class="go">&lt;Member &#39;Ritsu : Dr&#39;&gt;</span>
-<span class="go">&lt;Member &#39;Mio : Ba&#39;&gt;</span>
+  <div class="section" id="module-contents">
+<h1>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h1>
+<p>The <a class="reference internal" href="models.html#module-macaron" title="macaron"><tt class="xref py py-mod docutils literal"><span class="pre">macaron</span></tt></a> module is the main module of <em>Macaron</em>. It has some module functions needed to use <em>Macaron</em>.</p>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p><em>Macaron</em> works with a global <a class="reference internal" href="class/macaron.html#macaron.Macaron" title="macaron.Macaron"><tt class="xref py py-class docutils literal"><span class="pre">Macaron</span></tt></a> object. The object is generated by <a class="reference internal" href="models.html#module-macaron" title="macaron"><tt class="xref py py-mod docutils literal"><span class="pre">macaron</span></tt></a> module. Typical usage starts with <a class="reference internal" href="#macaron.macaronage" title="macaron.macaronage"><tt class="xref py py-func docutils literal"><span class="pre">macaronage()</span></tt></a> and finishes with <a class="reference internal" href="#macaron.cleanup" title="macaron.cleanup"><tt class="xref py py-func docutils literal"><span class="pre">cleanup()</span></tt></a>. If you change the database contents, you will need to call <a class="reference internal" href="#macaron.bake" title="macaron.bake"><tt class="xref py py-func docutils literal"><span class="pre">bake()</span></tt></a> (as commit) or <a class="reference internal" href="#macaron.rollback" title="macaron.rollback"><tt class="xref py py-func docutils literal"><span class="pre">rollback()</span></tt></a>.</p>
+<p>Using database models are described in <a class="reference internal" href="class/model.html"><em>Model class reference</em></a>.</p>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
+
+<span class="c"># Initializing with autocommit and SQL execution logging</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="s">&quot;mybook.db&quot;</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="o">...</span> <span class="n">uses</span> <span class="n">Models</span> <span class="o">...</span>
+
+<span class="c"># printing out the last five history</span>
+<span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">macaron</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+<span class="c"># finishing macaron</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
+<span class="n">macaron</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
 </pre></div>
 </div>
-<dl class="function">
-<dt id="macaron.macaronage">
-<tt class="descclassname">macaron.</tt><tt class="descname">macaronage</tt><big>(</big><em>dbfile=':memory:'</em>, <em>lazy=False</em>, <em>connection=None</em>, <em>autocommit=False</em><big>)</big><a class="headerlink" href="#macaron.macaronage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initializes macaron.
-This sets Macaron instance to module global variable <em>_m</em> (don&#8217;t access directly).
-If <em>lazy</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">LazyConnection</span></tt> object is used for connection, which
-will connect to the DB when using. If <em>autocommit</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, this will
-commits when this object will be unloaded.</p>
+</div>
+</div>
+<div class="section" id="module-attributes">
+<h2>Module attributes<a class="headerlink" href="#module-attributes" title="Permalink to this headline">¶</a></h2>
+<dl class="attribute">
+<dt id="macaron.macaron.history">
+<tt class="descclassname">macaron.</tt><tt class="descname">history</tt><a class="headerlink" href="#macaron.macaron.history" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Exception :</th><td class="field-body">RuntimeError &#8211; SQL history is not enabled.</td>
+</tr>
+<tr class="field"><th class="field-name">Exception :</th><td class="field-body">IndexError &#8211; index is lager than history count.</td>
+</tr>
+<tr class="field"><th class="field-name">Return type:</th><td class="field-body">string or list</td>
+</tr>
+</tbody>
+</table>
+<p>Returns history of SQL execution. You can get history like a list (index:0 is latest). It may be useful for debugging your applications.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">last_sql</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">second_last_sql</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">sqls</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
+</pre></div>
+</div>
 </dd></dl>
 
-<dl class="function">
-<dt id="macaron.execute">
-<tt class="descclassname">macaron.</tt><tt class="descname">execute</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#macaron.execute" title="Permalink to this definition">¶</a></dt>
-<dd><p>Executes <tt class="docutils literal"><span class="pre">sqlite3.Cursor#execute()</span></tt>.
-This calls <tt class="docutils literal"><span class="pre">sqlite3.Cursor#execute()</span></tt>.</p>
-</dd></dl>
-
+</div>
+<div class="section" id="module-methods">
+<h2>Module methods<a class="headerlink" href="#module-methods" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="macaron.bake">
 <tt class="descclassname">macaron.</tt><tt class="descname">bake</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.bake" title="Permalink to this definition">¶</a></dt>
 <dd><p>Commits the database.</p>
 </dd></dl>
 
+<dl class="function">
+<dt id="macaron.cleanup">
+<tt class="descclassname">macaron.</tt><tt class="descname">cleanup</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Closes database and tidies up Macaron</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.execute">
+<tt class="descclassname">macaron.</tt><tt class="descname">execute</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#macaron.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for <tt class="docutils literal"><span class="pre">Cursor#execute()</span></tt>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.macaronage">
+<tt class="descclassname">macaron.</tt><tt class="descname">macaronage</tt><big>(</big><em>dbfile=':memory:'</em>, <em>lazy=False</em>, <em>autocommit=False</em>, <em>logger=None</em>, <em>history=-1</em><big>)</big><a class="headerlink" href="#macaron.macaronage" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>dbfile</strong> &#8211; SQLite database file name.</li>
+<li><strong>lazy</strong> &#8211; Uses <tt class="xref py py-class docutils literal"><span class="pre">LazyConnection</span></tt>.</li>
+<li><strong>autocommit</strong> &#8211; Commits automatically when closing database.</li>
+<li><strong>logger</strong> (<tt class="xref py py-class docutils literal"><span class="pre">logging.Logger</span></tt>) &#8211; Uses for logging SQL execution.</li>
+<li><strong>history</strong> &#8211; Set max count of SQL execution history (0 is unlimited, -1 is disabled).
+Default: disabled</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Initializes macaron.
+This sets Macaron instance to module global variable <em>_m</em> (don&#8217;t access directly).
+If <em>lazy</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">LazyConnection</span></tt> object is used for connection, which
+will connect to the DB when using. If <em>autocommit</em> is <tt class="xref docutils literal"><span class="pre">True</span></tt>, this will commits
+when this object will be unloaded.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="macaron.rollback">
+<tt class="descclassname">macaron.</tt><tt class="descname">rollback</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.rollback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rollbacks the database.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="sql-logging">
+<h3>SQL logging<a class="headerlink" href="#sql-logging" title="Permalink to this headline">¶</a></h3>
+<p><em>Macaron</em>&#8216;s logging architecture uses <tt class="xref py py-mod docutils literal"><span class="pre">logging</span></tt> which is Python standard module. Simply, you can use SQL history, calling <a class="reference internal" href="#macaron.macaronage" title="macaron.macaronage"><tt class="xref py py-func docutils literal"><span class="pre">macaron.macaronage()</span></tt></a> with <tt class="docutils literal"><span class="pre">history</span></tt> parameter. It set a logger for recording executions of SQL and you can obtain the SQL and stringfied its parameters through <a class="reference internal" href="#macaron.macaron.history" title="macaron.macaron.history"><tt class="xref py py-attr docutils literal"><span class="pre">macaron.history</span></tt></a>.</p>
+</div>
+<div class="section" id="using-custom-logger">
+<h3>Using custom logger<a class="headerlink" href="#using-custom-logger" title="Permalink to this headline">¶</a></h3>
+<p>If you want to use custom logger(s), you call <a class="reference internal" href="#macaron.macaronage" title="macaron.macaronage"><tt class="xref py py-func docutils literal"><span class="pre">macaron.macaronage()</span></tt></a> with <tt class="docutils literal"><span class="pre">logger</span></tt> parameter. It set the logger for recording history, too. The class of logger object must be a subclass of :class`logging.Logger`.</p>
+<p>If you set both <tt class="docutils literal"><span class="pre">logger</span></tt> and <tt class="docutils literal"><span class="pre">history</span></tt> parameters, <em>Macaron</em> will add handler to your logger object.</p>
+</div>
+</div>
 </div>
 
 
@@ -147,7 +242,7 @@ This calls <tt class="docutils literal"><span class="pre">sqlite3.Cursor#execute
         <li class="right" >
           <a href="models.html" title="Models"
              >previous</a> |</li>
-        <li><a href="index.html">Macaron v0.2 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
