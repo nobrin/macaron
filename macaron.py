@@ -28,15 +28,14 @@ __author__ = "Nobuo Okazaki"
 __version__ = "0.2.1-dev"
 __license__ = "MIT License"
 
-import sqlite3
-import re
+import sqlite3, re
 import copy
 import logging
 import datetime
 
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
-class ValidationError(Exception): pass
+class ValidationError(Exception): pass      # TODO: fix behavior
 
 # --- Module global attributes
 _m = None       # Macaron object
@@ -89,7 +88,7 @@ def cleanup():
     """Closes database and tidies up Macaron"""
     _m = None
 
-# Classes
+# --- Classes
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
     def __init__(self):
@@ -115,7 +114,39 @@ class Macaron(object):
         self.used_by.append(meta_obj)
         return self.connection[meta_obj.conn_name]
 
-# --- for database logging
+# --- Connection wrappers
+def _create_wrapper(logger):
+    class ConnectionWrapper(sqlite3.Connection):
+        def cursor(self):
+            self.logger = logger
+            return super(ConnectionWrapper, self).cursor(CursorWrapper)
+    return ConnectionWrapper
+
+class CursorWrapper(sqlite3.Cursor):
+    """Subclass of sqlite3.Cursor for logging"""
+    def execute(self, sql, parameters=[]):
+        if self.connection.logger:
+            self.connection.logger.debug("%s\nparams: %s" % (sql, str(parameters)))
+        if(isinstance(history, ListHandler)):
+            history.lastsql = sql
+            history.lastparams = parameters
+        return super(CursorWrapper, self).execute(sql, parameters)
+
+class LazyConnection(object):
+    """Lazy connection wrapper"""
+    def __init__(self, *args, **kw):
+        self.args = args
+        self.kwargs = kw
+        self._conn = None
+
+    def __getattr__(self, name):
+        if not self._conn and (name in ["commit", "rollback", "close"]): return self.noop
+        self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
+        return getattr(self._conn, name)
+
+    def noop(self): return
+
+# --- Logging
 class ListHandler(logging.Handler):
     """SQL history listing handler for ``logging``.
 
@@ -149,37 +180,7 @@ class ListHandler(logging.Handler):
         if len(self._list) <= idx: raise IndexError("SQL history max_count is %d." % len(self._list))
         return self._list.__getitem__(idx)
 
-def _create_wrapper(logger):
-    class ConnectionWrapper(sqlite3.Connection):
-        def cursor(self):
-            self.logger = logger
-            return super(ConnectionWrapper, self).cursor(CursorWrapper)
-    return ConnectionWrapper
-
-class CursorWrapper(sqlite3.Cursor):
-    """Subclass of sqlite3.Cursor for logging"""
-    def execute(self, sql, parameters=[]):
-        if self.connection.logger:
-            self.connection.logger.debug("%s\nparams: %s" % (sql, str(parameters)))
-        if(isinstance(history, ListHandler)):
-            history.lastsql = sql
-            history.lastparams = parameters
-        return super(CursorWrapper, self).execute(sql, parameters)
-
-class LazyConnection(object):
-    """Lazy connection wrapper"""
-    def __init__(self, *args, **kw):
-        self.args = args
-        self.kwargs = kw
-        self._conn = None
-
-    def __getattr__(self, name):
-        if not self._conn and (name in ["commit", "rollback", "close"]): return self.noop
-        self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
-        return getattr(self._conn, name)
-
-    def noop(self): return
-
+# --- Table and field information
 class FieldInfoCollection(list):
     """FieldInfo collection"""
     def __init__(self):
@@ -210,14 +211,6 @@ class FieldInfo(object):
         self.converter = None
         if re.match(r"^BOOLEAN$", self.type, re.I):
             self.default = bool(re.match(r"^TRUE$", self.default, re.I))
-
-class AggregateFunction(object):
-    def __init__(self, field_name): self.field_name = field_name
-class Avg(AggregateFunction):   name = "AVG"
-class Max(AggregateFunction):   name = "MAX"
-class Min(AggregateFunction):   name = "MIN"
-class Sum(AggregateFunction):   name = "SUM"
-class Count(AggregateFunction): name = "COUNT"
 
 class ClassProperty(property):
     """Using class property wrapper class"""
@@ -258,6 +251,7 @@ class TableMetaInfo(object):
             self.fields.append(FieldInfo(row))
             if fld.is_primary_key: self.primary_key = fld
 
+# --- Relationships
 class ManyToOne(property):
     """Many to one relation ship definition class"""
     def __init__(self, ref, related_name=None, fkey=None, ref_key=None):
@@ -304,6 +298,7 @@ class _ManyToOne_Rev(property):
         qs = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
         return ManyToOneRevSet(qs, owner, self)
 
+# --- QuerySet
 class QuerySet(object):
     """This class generates SQL which like QuerySet in Django"""
     def __init__(self, parent):
@@ -428,20 +423,7 @@ class ManyToOneRevSet(QuerySet):
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
-# --- Field converters
-class Field(object):
-    def set(self, obj, value): return value         # sets value
-    def to_database(self, obj, value): return value # convert object to database
-    def to_object(self, row, value): return value   # convert object from database
-    def validate(self, obj, value): return True     # validate
-
-class AtCreate(Field): pass
-class AtSave(Field): pass
-class NowAtCreate(AtCreate):
-    def set(self, obj, value): return datetime.datetime.now()
-class NowAtSave(AtCreate, AtSave):
-    def set(self, obj, value): return datetime.datetime.now()
-
+# --- BaseModel
 class ModelMeta(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
@@ -577,6 +559,64 @@ class Model(object):
     def __repr__(self):
         return "<%s object %s>" % (self.__class__.__name__, self.pk)
 
+# --- Field converting and validation
+class Field(object):
+    def set(self, obj, value): return value         # sets value
+    def to_database(self, obj, value): return value # convert object to database
+    def to_object(self, row, value): return value   # convert object from database
+    def validate(self, obj, value): return True     # validate
+
+    def __add__(self, other):
+        def chain(a, b):
+            def _chain(*args, **kw): return b(a(*args, **kw))
+            return _chain
+        def sequential_validation(a, b):
+            def _sequential(obj, value):
+                if a.validate(obj, value) and b.validate(obj, value): return True
+                raise ValidationError(obj, value)
+            return _sequential
+        self.set = other.set
+        self.to_database = chain(self.to_database, other.to_database)
+        self.to_object = chain(self.to_object, other.to_object)
+        self.validate = sequential_validation(self, other)
+
+class AtCreate(Field): pass
+class AtSave(Field): pass
+class NowAtCreate(AtCreate):
+    def set(self, obj, value): return datetime.datetime.now()
+class NowAtSave(AtCreate, AtSave):
+    def set(self, obj, value): return datetime.datetime.now()
+
+class NumberField(Field):
+    def __init__(self, max=None, min=None):
+        self.max, self.min = max, min
+    def validate(self, obj, value):
+        if self.max != None and value > self.max: raise ValidationError("Max value is exceeded.")
+        if self.min != None and value < self.min: raise ValidationError("Min value is underrun.")
+        return True
+
+class IntegerField(Field):
+    def validate(self, obj, value):
+        if not isinstance(value, (int, long)): raise ValidationError("Not integer.")
+        return super(IntegerField, self).validate(obj, value)
+
+class CharField(Field):
+    def __init__(self, max_length=None):
+        self.max_length = max_length
+    def validate(self, obj, value):
+        if self.max_length and len(value) > self.max_length: raise ValidationError("Text is too long.")
+        if self.min_length and len(value) < self.min_length: raise ValidationError("Text is too short.")
+
+# --- Aggregation functions
+class AggregateFunction(object):
+    def __init__(self, field_name): self.field_name = field_name
+class Avg(AggregateFunction):   name = "AVG"
+class Max(AggregateFunction):   name = "MAX"
+class Min(AggregateFunction):   name = "MIN"
+class Sum(AggregateFunction):   name = "SUM"
+class Count(AggregateFunction): name = "COUNT"
+
+# --- Plugin for Bottle web framework
 class MacaronPlugin(object):
     """Macaron plugin for Bottle web framework
     This plugin handled Macaron.
