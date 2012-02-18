@@ -12,10 +12,6 @@
    :members:
    :undoc-members:
 
-.. autoclass:: Field
-   :members:
-   :undoc-members:
-
 .. autoclass:: TableMetaInfo
    :members:
    :undoc-members:

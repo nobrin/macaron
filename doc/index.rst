@@ -34,12 +34,22 @@ User's Guide
 
    overview
    tutorial
-   bottle
+   webapp
    models
+
+
+Reference Guide
+===============
+
+.. toctree::
+   :maxdepth: 2
+
    module
    class/model
+   class/field
    class/queryset
    class/macaron
+
 
 Indices and tables
 ==================

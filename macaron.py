@@ -100,10 +100,9 @@ class Macaron(object):
     def __del__(self):
         """Closing the connections"""
         while len(self.used_by):
-            # Removes reference pointer from TableMetaClassProperty.
-            # If the pointer leaved, closing connection causes mismatch
-            # between TableMetaClassProperty#table_meta and Macaron#connection,
-            # like test cases.
+            # Removes references from TableMetaClassProperty.
+            # If the pointer leaved, closing connection causes status mismatch
+            # between TableMetaClassProperty#table_meta and Macaron#connection.
             self.used_by.pop(0).table_meta = None
 
         for k in self.connection.keys():
@@ -111,11 +110,13 @@ class Macaron(object):
             self.connection[k].close()
 
     def get_connection(self, meta_obj):
+        """Returns Connection and adds reference to the object which uses it."""
         self.used_by.append(meta_obj)
         return self.connection[meta_obj.conn_name]
 
 # --- Connection wrappers
 def _create_wrapper(logger):
+    """Returns ConnectionWrapper class"""
     class ConnectionWrapper(sqlite3.Connection):
         def cursor(self):
             self.logger = logger
@@ -144,7 +145,7 @@ class LazyConnection(object):
         self._conn = self._conn or sqlite3.connect(*self.args, **self.kwargs)
         return getattr(self._conn, name)
 
-    def noop(self): return
+    def noop(self): return  # NO-OP for commit, rollback, close
 
 # --- Logging
 class ListHandler(logging.Handler):
@@ -197,13 +198,6 @@ class FieldInfo(object):
 
        :param row: tuple got from 'PRAGMA table_info(``table_name``)'
        :type row: tuple
-
-       .. attribute:: cid
-                      name
-                      type
-                      not_null
-                      default
-                      is_primary_key
     """
     def __init__(self, row):
         self.cid, self.name, self.type, \
