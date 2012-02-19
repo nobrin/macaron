@@ -195,7 +195,7 @@ class FieldInfoCollection(list):
     def keys(self): return self._field_dict.keys()
 
 class FieldInfo(object):
-    """Field information class
+    """Field information class(OBSOLETE)
 
        :param row: tuple got from 'PRAGMA table_info(``table_name``)'
        :type row: tuple
@@ -232,10 +232,17 @@ class FieldFactory(object):
             fld = getattr(cls, row[1])
         else:
             fld = Field()
+# TODO: Error in default value (None) for primary key
+#            for fldcls in TYPE_FIELDS:
+#                for regex in fldcls.TYPENAMES:
+#                    if re.search(regex, row[2]):
+#                        fld = fldcls()
+#                        break
         fld.cid, fld.name, fld.type, \
             fld.not_null, fld.default, fld.is_primary_key = row
         if re.match(r"^BOOLEAN$", fld.type, re.I):
             fld.default = bool(re.match(r"^TRUE$", fld.default, re.I))
+        fld.after_meta_initialized()
         return fld
 
 class TableMetaClassProperty(property):
@@ -585,6 +592,8 @@ class Field(object):
     def to_object(self, row, value): return value   # convert object from database
     def validate(self, obj, value): return True     # validate
 
+    def after_meta_initialized(self): pass
+
     def o__add__(self, other):
         def chain(a, b):
             def _chain(*args, **kw): return b(a(*args, **kw))
@@ -606,22 +615,31 @@ class NowAtCreate(AtCreate):
 class NowAtSave(AtCreate, AtSave):
     def set(self, obj, value): return datetime.datetime.now()
 
-class NumberField(Field):
-    def __init__(self, max=None, min=None):
-        self.max, self.min = max, min
+class FloatField(Field):
+    TYPENAMES = ("REAL", "FLOA", "DOUB")
+    def __init__(self, max=None, min=None): self.max, self.min = max, min
     def validate(self, obj, value):
         if self.max != None and value > self.max: raise ValidationError("Max value is exceeded.")
         if self.min != None and value < self.min: raise ValidationError("Min value is underrun.")
         return True
 
-class IntegerField(Field):
+class IntegerField(FloatField):
+    TYPENAMES = (r"INT")
     def validate(self, obj, value):
-        if not isinstance(value, (int, long)): raise ValidationError("Not integer.")
-        return super(IntegerField, self).validate(obj, value)
+        try: int(value)
+        except ValueError: raise ValidationError("Not integer.")
+        return super(IntegerField, self).validate(obj, int(value))
 
 class CharField(Field):
-    def __init__(self, max_length=None):
-        self.max_length = max_length
+    TYPENAMES = ("CHAR", "CLOB", "TEXT")
+    def __init__(self, max_length=None, min_length=None):
+        self.max_length, self.min_length = max_length, min_length
+
+    def after_meta_initialized(self):
+        m = re.match(r"^VARCHAR\s*\((\d+)\)", self.type, re.I)
+        if m and (not self.max_length or self.max_length > int(m.group(1))):
+            self.max_length = int(m.group(1))
+
     def validate(self, obj, value):
         if self.max_length and len(value) > self.max_length: raise ValidationError("Text is too long.")
         if self.min_length and len(value) < self.min_length: raise ValidationError("Text is too short.")
@@ -675,3 +693,4 @@ class MacaronPlugin(object):
             return ret_value
         return wrapper
 
+TYPE_FIELDS = [IntegerField, FloatField, CharField]
