@@ -192,6 +192,7 @@ class FieldInfoCollection(list):
         self._field_dict[fld.name] = fld
 
     def __getitem__(self, name): return self._field_dict[name]
+    def keys(self): return self._field_dict.keys()
 
 class FieldInfo(object):
     """Field information class
@@ -211,6 +212,32 @@ class ClassProperty(property):
     def __get__(self, owner_obj, cls):
         return self.fget.__get__(owner_obj, cls)()
 
+class FieldProperty(property):
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, owner_obj, cls):
+        if not owner_obj._data.has_key(self.name): return None
+        return owner_obj._data[self.name]
+
+
+    def __set__(self, owner_obj, value):
+        if owner_obj.__class__._meta.fields[self.name].validate(owner_obj, value):
+            owner_obj._data[self.name] = value
+
+class FieldFactory(object):
+    @staticmethod
+    def create(row, cls):
+        if hasattr(cls, row[1]) and isinstance(getattr(cls, row[1]), Field):
+            fld = getattr(cls, row[1])
+        else:
+            fld = Field()
+        fld.cid, fld.name, fld.type, \
+            fld.not_null, fld.default, fld.is_primary_key = row
+        if re.match(r"^BOOLEAN$", fld.type, re.I):
+            fld.default = bool(re.match(r"^TRUE$", fld.default, re.I))
+        return fld
+
 class TableMetaClassProperty(property):
     """Using TableMetaInfo class property wrapper class"""
     def __init__(self):
@@ -221,7 +248,8 @@ class TableMetaClassProperty(property):
 
     def __get__(self, owner_obj, cls):
         if not self.table_meta:
-            self.table_meta = TableMetaInfo(_m.get_connection(self), self.table_name)
+            self.table_meta = TableMetaInfo(_m.get_connection(self), self.table_name, cls)
+            for fld in self.table_meta.fields: setattr(cls, fld.name, FieldProperty(fld.name))
         return self.table_meta
 
 class TableMetaInfo(object):
@@ -230,7 +258,7 @@ class TableMetaInfo(object):
     :class:`ModelMeta`. If you use ``Bookmark`` class, you can access the
     table information with ``Bookmark._meta``.
     """
-    def __init__(self, conn, table_name):
+    def __init__(self, conn, table_name, cls):
         self._conn = conn   # Connection for the table
         #: Table fields collection
         self.fields = FieldInfoCollection()
@@ -241,8 +269,8 @@ class TableMetaInfo(object):
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
         for row in rows:
-            fld = FieldInfo(row)
-            self.fields.append(FieldInfo(row))
+            fld = FieldFactory.create(row, cls)
+            self.fields.append(fld)
             if fld.is_primary_key: self.primary_key = fld
 
 # --- Relationships
@@ -417,7 +445,7 @@ class ManyToOneRevSet(QuerySet):
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
-# --- BaseModel
+# --- BaseModel and Model class
 class ModelMeta(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
@@ -438,12 +466,12 @@ class Model(object):
     __metaclass__ = ModelMeta
     _table_name = None  #: Database table name (the property will be deleted in ModelMeta)
     _meta = None        #: accessor for TableMetaInfo (set in ModelMeta)
-
+                        #  Accessing to _meta triggers initializing TableMetaInfo and Class attributes.
     def __init__(self, **kw):
-        cls = self.__class__
-        for fld in cls._meta.fields: setattr(self, fld.name, fld.default)
+        self._data = {}
         for k in kw.keys():
-            if not hasattr(self, k): ValueError("Invalid column name '%s'." % k)
+            if k not in self.__class__._meta.fields.keys():
+                ValueError("Invalid column name '%s'." % k)
             setattr(self, k, kw[k])
 
     def get_key_value(self):
@@ -456,8 +484,7 @@ class Model(object):
         """Convert raw values to object"""
         h = dict([[d[0], row[i]] for i, d in enumerate(cur.description)])
         for fld in cls._meta.fields:
-            if hasattr(cls, fld.name) and isinstance(getattr(cls, fld.name), Field):
-                h[fld.name] = getattr(cls, fld.name).to_object(sqlite3.Row(cur, row), h[fld.name])
+            h[fld.name] = fld.to_object(sqlite3.Row(cur, row), h[fld.name])
         return cls(**h)
 
     @classmethod
@@ -529,18 +556,16 @@ class Model(object):
     def _before_before_store(obj, meth_name, at_cls):
         cls = obj.__class__
         # set value with at_cls object
-        for fld in filter(lambda f: hasattr(cls, f.name), cls._meta.fields):
-            if isinstance(getattr(cls, fld.name), at_cls):
-                converter = getattr(getattr(cls, fld.name), meth_name)
+        for fld in cls._meta.fields:
+            if isinstance(fld, at_cls):
+                converter = getattr(fld, meth_name)
                 setattr(obj, fld.name, converter(cls, getattr(obj, fld.name)))
 
     def validate(self):
         cls = self.__class__
-        for fld in filter(lambda f: hasattr(cls, f.name), cls._meta.fields):
-            if isinstance(getattr(cls, fld.name), Field):
-                value = getattr(self, fld.name)
-                if not getattr(cls, fld.name).validate(self, value):
-                    raise ValidationError("%s.%s is invalid value. '%s'" % (cls.__name__, fld.name, str(value)))
+        for fld in cls._meta.fields:
+            if not fld.validate(self, getattr(self, fld.name)):
+                raise ValidationError("%s.%s is invalid value. '%s'" % (cls.__name__, fld.name, str(value)))
 
     # These hooks are triggered at Model.create() and Model#save().
     # Model.create(): before_create -> INSERT -> after_create
@@ -560,7 +585,7 @@ class Field(object):
     def to_object(self, row, value): return value   # convert object from database
     def validate(self, obj, value): return True     # validate
 
-    def __add__(self, other):
+    def o__add__(self, other):
         def chain(a, b):
             def _chain(*args, **kw): return b(a(*args, **kw))
             return _chain
