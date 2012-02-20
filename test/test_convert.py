@@ -26,8 +26,8 @@ class StoreJSON(macaron.Field):
 
 class MyRecord(macaron.Model):
     value = StoreJSON()
-    created = macaron.NowAtCreate()
-    modified = macaron.NowAtSave()
+    created = macaron.TimestampAtCreate()
+    modified = macaron.TimestampAtSave()
     def __str__(self): return "<MyRecord '%s' is '%s'>" % (self.name, str(self.value))
 
 class TestConverter(unittest.TestCase):
@@ -45,7 +45,7 @@ class TestConverter(unittest.TestCase):
         self.assert_(newrec.modified)
         created = newrec.created
         modified = newrec.modified
-        time.sleep(1)   # wait for changing time
+        time.sleep(2)   # wait for changing time
         rec = MyRecord.get(1)
         self.assertEqual(rec.value["Macaron"], "Good!")
         rec.value = {"Macaron":"Excellent!!"}

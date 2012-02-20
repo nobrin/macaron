@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+import time
 import macaron
 
 DB_FILE = ":memory:"
@@ -24,13 +25,13 @@ SQL_MEMBER = """CREATE TABLE member (
 )"""
 
 class Team(macaron.Model):
-    created = macaron.NowAtCreate()
+    created = macaron.TimestampAtCreate()
     def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, "members")
-    joined = macaron.NowAtCreate()
-    modified = macaron.NowAtSave()
+    joined = macaron.TimestampAtCreate()
+    modified = macaron.TimestampAtSave()
     age = macaron.IntegerField(max=18, min=15)
 
 class TestMacaron(unittest.TestCase):
@@ -48,7 +49,7 @@ class TestMacaron(unittest.TestCase):
             {"name":"name", "default":None, "null":False, "max_length":40},
             {"name":"created", "default":None, "null":False},
         )
-        clss = (macaron.IntegerField, macaron.CharField, macaron.NowAtCreate)
+        clss = (macaron.IntegerField, macaron.CharField, macaron.TimestampAtCreate)
         for idx in range(0, len(Team._meta.fields)):
             fld = Team._meta.fields[idx]
             for n in chks[idx].keys():
@@ -77,6 +78,7 @@ class TestMacaron(unittest.TestCase):
         self.assert_(member1.modified)
 
         member1.age += 1
+        time.sleep(2)
         member1.save()
 
         self.assertNotEqual(member1.modified, member2.modified)

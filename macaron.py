@@ -31,7 +31,7 @@ __license__ = "MIT License"
 import sqlite3, re
 import copy
 import logging
-import datetime
+from datetime import datetime
 
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
@@ -200,13 +200,9 @@ class FieldFactory(object):
         cdict = cls.__dict__
         if cdict.has_key(rec["name"]) and cdict[rec["name"]].is_user_defined:
             fld = cls.__dict__[rec["name"]]
-            # convert default from 'PRAGMA table_info()'.
-            if fld.default == None and rec["default"] != None:
-                fld.default = Field.default_convert(rec["type"], rec["default"])
         else:
             fldkw = {
                 "null"          : not rec["not_null"],
-                "default"       : rec["default"],
                 "is_primary_key": rec["is_primary_key"],
             }
             use_field_class = Field
@@ -218,6 +214,9 @@ class FieldFactory(object):
             fld = use_field_class(**fldkw)
         fld.cid, fld.name, fld.type = row[0:3]
         fld.initialize_after_meta()
+        # convert default from 'PRAGMA table_info()'.
+        if fld.default == None and rec["default"] != None:
+            fld.default = fld.cast(rec["default"])
         setattr(cls, rec["name"], fld)
         return fld
 
@@ -262,7 +261,7 @@ class Field(property):
         self.null = null
         self.default = default
         self.is_primary_key = bool(is_primary_key)
-
+    def cast(self, value): return value
     def set(self, obj, value): return value
     def to_database(self, obj, value): return value
     def to_object(self, row, value): return value
@@ -288,10 +287,34 @@ class Field(property):
 
 class AtCreate(Field): pass
 class AtSave(Field): pass
-class NowAtCreate(AtCreate):
-    def set(self, obj, value): return datetime.datetime.now()
-class NowAtSave(AtCreate, AtSave):
-    def set(self, obj, value): return datetime.datetime.now()
+
+class TimestampField(Field):
+    TYPENAMES = (r"^TIMESTAMP$", r"^DATETIME$")
+    def to_database(self, obj, value): return value.strftime("%Y-%m-%d %H:%M:%S")
+    def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+
+class DateField(Field):
+    TYPENAMES = (r"^DATE$",)
+    def to_database(self, obj, value): return value.strftime("%Y-%m-%d")
+    def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d").date()
+
+class TimeField(Field):
+    TYPENAMES = (r"^TIME$",)
+    def to_database(self, obj, value): return value.strftime("%H-%M-%S")
+    def to_object(self, row, value): return datetime.strptime(value, "%H-%M-%S").time()
+
+class TimestampAtCreate(TimestampField, AtCreate):
+    def set(self, obj, value): return datetime.now()
+
+class DateAtCreate(DateField, AtCreate):
+    def set(self, obj, value): return datetime.now().date()
+
+class TimeAtCreate(TimeField, AtCreate):
+    def set(self, obj, value): return datetime.now().time()
+
+class TimestampAtSave(TimestampAtCreate, AtSave): pass
+class DateAtSave(DateAtCreate, AtSave): pass
+class TimeAtSave(TimeAtCreate, AtSave): pass
 
 class FloatField(Field):
     TYPENAMES = ("REAL", "FLOA", "DOUB")
@@ -299,11 +322,15 @@ class FloatField(Field):
         super(FloatField, self).__init__(**kw)
         self.max, self.min = max, min
 
+    def cast(self, value):
+        if value == None: return None
+        return float(value)
+
     def validate(self, obj, value):
         super(FloatField, self).validate(obj, value)
         if value == None: return True
-        try: float(value)
-        except ValueError: raise ValidationError("Value is not a number.")
+        try: self.cast(value)
+        except (ValueError, TypeError): raise ValidationError("Value is not a number.")
         if self.max != None and value > self.max: raise ValidationError("Max value is exceeded. %d" % value)
         if self.min != None and value < self.min: raise ValidationError("Min value is underrun. %d" % value)
         return True
@@ -313,11 +340,15 @@ class IntegerField(FloatField):
     def initialize_after_meta(self):
         if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
 
+    def cast(self, value):
+        if value == None: return None
+        return int(value)
+
     def validate(self, obj, value):
         super(IntegerField, self).validate(obj, value)
         if value == None: return True
-        try: int(value)
-        except ValueError: raise ValidationError("Value is not an integer.")
+        try: self.cast(value)
+        except (ValueError, TypeError): raise ValidationError("Value is not an integer.")
         return True
 
 class CharField(Field):
@@ -506,7 +537,7 @@ class ManyToOneRevSet(QuerySet):
             self.cls_fkey = rel.rev_fkey
 
     def append(self, *args, **kw):
-        """Append new member"""
+        """Append a new member"""
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
@@ -519,9 +550,9 @@ class ModelMeta(type):
         dict["_meta"].table_name = dict.pop("_table_name", name.lower())
         return type.__new__(cls, name, bases, dict)
 
-    def __init__(instance, name, bases, dict):
+    def __init__(cls, name, bases, dict):
         for k in dict.keys():
-            if isinstance(dict[k], ManyToOne): dict[k].set_reverse(instance)
+            if isinstance(dict[k], ManyToOne): dict[k].set_reverse(cls)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
 
 class Model(object):
