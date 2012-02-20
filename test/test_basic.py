@@ -34,6 +34,7 @@ class Member(macaron.Model):
 #    team = macaron.ManyToOne(Team, "team_id", related_name="members")
 #    team = macaron.ManyToOne(Team, related_name="members")
     team = macaron.ManyToOne(Team, "members")
+    age = macaron.IntegerField(null=True)
 
     def __str__(self):
         return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)

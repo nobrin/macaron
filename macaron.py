@@ -76,17 +76,9 @@ def execute(*args, **kw):
     """Wrapper for ``Cursor#execute()``."""
     return _m.connection["default"].cursor().execute(*args, **kw)
 
-def bake():
-    """Commits the database."""
-    _m.connection["default"].commit()
-
-def rollback():
-    """Rollbacks the database."""
-    _m.connection["default"].rollback()
-
-def cleanup():
-    """Closes database and tidies up Macaron"""
-    _m = None
+def bake():     _m.connection["default"].commit()   # Commits
+def rollback(): _m.connection["default"].rollback() # Rollback
+def cleanup():  _m = None   # Closes database and tidies up Macaron
 
 # --- Classes
 class Macaron(object):
@@ -184,65 +176,49 @@ class ListHandler(logging.Handler):
 # --- Table and field information
 class FieldInfoCollection(list):
     """FieldInfo collection"""
-    def __init__(self):
-        self._field_dict = {}
+    def __init__(self): self._field_dict = {}
 
     def append(self, fld):
         super(FieldInfoCollection, self).append(fld)
         self._field_dict[fld.name] = fld
 
-    def __getitem__(self, name): return self._field_dict[name]
+    def __getitem__(self, name):
+        if isinstance(name, (int, long)):
+            return super(FieldInfoCollection, self).__getitem__(name)
+        return self._field_dict[name]
+
     def keys(self): return self._field_dict.keys()
-
-class FieldInfo(object):
-    """Field information class(OBSOLETE)
-
-       :param row: tuple got from 'PRAGMA table_info(``table_name``)'
-       :type row: tuple
-    """
-    def __init__(self, row):
-        self.cid, self.name, self.type, \
-            self.not_null, self.default, self.is_primary_key = row
-        self.converter = None
-        if re.match(r"^BOOLEAN$", self.type, re.I):
-            self.default = bool(re.match(r"^TRUE$", self.default, re.I))
 
 class ClassProperty(property):
     """Using class property wrapper class"""
-    def __get__(self, owner_obj, cls):
-        return self.fget.__get__(owner_obj, cls)()
-
-class FieldProperty(property):
-    def __init__(self, name):
-        self.name = name
-
-    def __get__(self, owner_obj, cls):
-        if not owner_obj._data.has_key(self.name): return None
-        return owner_obj._data[self.name]
-
-
-    def __set__(self, owner_obj, value):
-        if owner_obj.__class__._meta.fields[self.name].validate(owner_obj, value):
-            owner_obj._data[self.name] = value
+    def __get__(self, owner_obj, cls): return self.fget.__get__(owner_obj, cls)()
 
 class FieldFactory(object):
     @staticmethod
     def create(row, cls):
-        if hasattr(cls, row[1]) and isinstance(getattr(cls, row[1]), Field):
-            fld = getattr(cls, row[1])
+        rec = dict(zip(["cid", "name", "type", "not_null", "default", "is_primary_key"], row))
+        cdict = cls.__dict__
+        if cdict.has_key(rec["name"]) and cdict[rec["name"]].is_user_defined:
+            fld = cls.__dict__[rec["name"]]
+            # convert default from 'PRAGMA table_info()'.
+            if fld.default == None and rec["default"] != None:
+                fld.default = Field.default_convert(rec["type"], rec["default"])
         else:
-            fld = Field()
-# TODO: Error in default value (None) for primary key
-#            for fldcls in TYPE_FIELDS:
-#                for regex in fldcls.TYPENAMES:
-#                    if re.search(regex, row[2]):
-#                        fld = fldcls()
-#                        break
-        fld.cid, fld.name, fld.type, \
-            fld.not_null, fld.default, fld.is_primary_key = row
-        if re.match(r"^BOOLEAN$", fld.type, re.I):
-            fld.default = bool(re.match(r"^TRUE$", fld.default, re.I))
-        fld.after_meta_initialized()
+            fldkw = {
+                "null"          : not rec["not_null"],
+                "default"       : rec["default"],
+                "is_primary_key": rec["is_primary_key"],
+            }
+            use_field_class = Field
+            for fldcls in TYPE_FIELDS:
+                for regex in fldcls.TYPENAMES:
+                    if re.search(regex, row[2]):
+                        use_field_class = fldcls
+                        break
+            fld = use_field_class(**fldkw)
+        fld.cid, fld.name, fld.type = row[0:3]
+        fld.initialize_after_meta()
+        setattr(cls, rec["name"], fld)
         return fld
 
 class TableMetaClassProperty(property):
@@ -256,7 +232,6 @@ class TableMetaClassProperty(property):
     def __get__(self, owner_obj, cls):
         if not self.table_meta:
             self.table_meta = TableMetaInfo(_m.get_connection(self), self.table_name, cls)
-            for fld in self.table_meta.fields: setattr(cls, fld.name, FieldProperty(fld.name))
         return self.table_meta
 
 class TableMetaInfo(object):
@@ -279,6 +254,89 @@ class TableMetaInfo(object):
             fld = FieldFactory.create(row, cls)
             self.fields.append(fld)
             if fld.is_primary_key: self.primary_key = fld
+
+# --- Field converting and validation
+class Field(property):
+    is_user_defined = False
+    def __init__(self, null=False, default=None, is_primary_key=False):
+        self.null = null
+        self.default = default
+        self.is_primary_key = bool(is_primary_key)
+
+    def set(self, obj, value): return value
+    def to_database(self, obj, value): return value
+    def to_object(self, row, value): return value
+    def validate(self, obj, value):
+        if not self.null and value == None:
+            raise ValidationError("Field '%s' does not accept None value." % self.name)
+        return True
+
+    def initialize_after_meta(self): pass
+
+    def __get__(self, owner_obj, cls): return owner_obj._data.get(self.name, None)
+    def __set__(self, owner_obj, value):
+        self.validate(self, value)
+        owner_obj._data[self.name] = value
+
+    @staticmethod
+    def default_convert(typename, value):
+        for regex in FloatField.TYPENAMES:
+            if re.search(regex, typename, re.I): return float(value)
+        for regex in IntegerField.TYPENAMES:
+            if re.search(regex, typename, re.I): return int(value)
+        return value
+
+class AtCreate(Field): pass
+class AtSave(Field): pass
+class NowAtCreate(AtCreate):
+    def set(self, obj, value): return datetime.datetime.now()
+class NowAtSave(AtCreate, AtSave):
+    def set(self, obj, value): return datetime.datetime.now()
+
+class FloatField(Field):
+    TYPENAMES = ("REAL", "FLOA", "DOUB")
+    def __init__(self, max=None, min=None, **kw):
+        super(FloatField, self).__init__(**kw)
+        self.max, self.min = max, min
+
+    def validate(self, obj, value):
+        super(FloatField, self).validate(obj, value)
+        if value == None: return True
+        try: float(value)
+        except ValueError: raise ValidationError("Value is not a number.")
+        if self.max != None and value > self.max: raise ValidationError("Max value is exceeded. %d" % value)
+        if self.min != None and value < self.min: raise ValidationError("Min value is underrun. %d" % value)
+        return True
+
+class IntegerField(FloatField):
+    TYPENAMES = ("INT",)
+    def initialize_after_meta(self):
+        if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
+
+    def validate(self, obj, value):
+        super(IntegerField, self).validate(obj, value)
+        if value == None: return True
+        try: int(value)
+        except ValueError: raise ValidationError("Value is not an integer.")
+        return True
+
+class CharField(Field):
+    TYPENAMES = ("CHAR", "CLOB", "TEXT")
+    def __init__(self, max_length=None, min_length=None, **kw):
+        super(CharField, self).__init__(**kw)
+        self.max_length, self.min_length = max_length, min_length
+
+    def initialize_after_meta(self):
+        m = re.search(r"CHAR\s*\((\d+)\)", self.type, re.I)
+        if m and (not self.max_length or self.max_length > int(m.group(1))):
+            self.max_length = int(m.group(1))
+
+    def validate(self, obj, value):
+        super(CharField, self).validate(obj, value)
+        if value == None: return True
+        if self.max_length and len(value) > self.max_length: raise ValidationError("Text is too long.")
+        if self.min_length and len(value) < self.min_length: raise ValidationError("Text is too short.")
+        return True
 
 # --- Relationships
 class ManyToOne(property):
@@ -463,8 +521,8 @@ class ModelMeta(type):
 
     def __init__(instance, name, bases, dict):
         for k in dict.keys():
-            if isinstance(dict[k], ManyToOne):
-                dict[k].set_reverse(instance)
+            if isinstance(dict[k], ManyToOne): dict[k].set_reverse(instance)
+            if isinstance(dict[k], Field): dict[k].is_user_defined = True
 
 class Model(object):
     """Base model class.
@@ -476,6 +534,7 @@ class Model(object):
                         #  Accessing to _meta triggers initializing TableMetaInfo and Class attributes.
     def __init__(self, **kw):
         self._data = {}
+        for fld in self.__class__._meta.fields: self._data[fld.name] = fld.default
         for k in kw.keys():
             if k not in self.__class__._meta.fields.keys():
                 ValueError("Invalid column name '%s'." % k)
@@ -571,7 +630,8 @@ class Model(object):
     def validate(self):
         cls = self.__class__
         for fld in cls._meta.fields:
-            if not fld.validate(self, getattr(self, fld.name)):
+            value = getattr(self, fld.name)
+            if not fld.validate(self, value):
                 raise ValidationError("%s.%s is invalid value. '%s'" % (cls.__name__, fld.name, str(value)))
 
     # These hooks are triggered at Model.create() and Model#save().
@@ -584,65 +644,6 @@ class Model(object):
 
     def __repr__(self):
         return "<%s object %s>" % (self.__class__.__name__, self.pk)
-
-# --- Field converting and validation
-class Field(object):
-    def set(self, obj, value): return value         # sets value
-    def to_database(self, obj, value): return value # convert object to database
-    def to_object(self, row, value): return value   # convert object from database
-    def validate(self, obj, value): return True     # validate
-
-    def after_meta_initialized(self): pass
-
-    def o__add__(self, other):
-        def chain(a, b):
-            def _chain(*args, **kw): return b(a(*args, **kw))
-            return _chain
-        def sequential_validation(a, b):
-            def _sequential(obj, value):
-                if a.validate(obj, value) and b.validate(obj, value): return True
-                raise ValidationError(obj, value)
-            return _sequential
-        self.set = other.set
-        self.to_database = chain(self.to_database, other.to_database)
-        self.to_object = chain(self.to_object, other.to_object)
-        self.validate = sequential_validation(self, other)
-
-class AtCreate(Field): pass
-class AtSave(Field): pass
-class NowAtCreate(AtCreate):
-    def set(self, obj, value): return datetime.datetime.now()
-class NowAtSave(AtCreate, AtSave):
-    def set(self, obj, value): return datetime.datetime.now()
-
-class FloatField(Field):
-    TYPENAMES = ("REAL", "FLOA", "DOUB")
-    def __init__(self, max=None, min=None): self.max, self.min = max, min
-    def validate(self, obj, value):
-        if self.max != None and value > self.max: raise ValidationError("Max value is exceeded.")
-        if self.min != None and value < self.min: raise ValidationError("Min value is underrun.")
-        return True
-
-class IntegerField(FloatField):
-    TYPENAMES = (r"INT")
-    def validate(self, obj, value):
-        try: int(value)
-        except ValueError: raise ValidationError("Not integer.")
-        return super(IntegerField, self).validate(obj, int(value))
-
-class CharField(Field):
-    TYPENAMES = ("CHAR", "CLOB", "TEXT")
-    def __init__(self, max_length=None, min_length=None):
-        self.max_length, self.min_length = max_length, min_length
-
-    def after_meta_initialized(self):
-        m = re.match(r"^VARCHAR\s*\((\d+)\)", self.type, re.I)
-        if m and (not self.max_length or self.max_length > int(m.group(1))):
-            self.max_length = int(m.group(1))
-
-    def validate(self, obj, value):
-        if self.max_length and len(value) > self.max_length: raise ValidationError("Text is too long.")
-        if self.min_length and len(value) < self.min_length: raise ValidationError("Text is too short.")
 
 # --- Aggregation functions
 class AggregateFunction(object):
