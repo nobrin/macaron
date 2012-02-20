@@ -62,6 +62,19 @@
     <li><a href="sources/index.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
 
@@ -105,16 +118,24 @@
 <li class="toctree-l2"><a class="reference internal" href="tutorial.html#aggregation">Aggregation</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="bottle.html">Macaron with Bottle web framework</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="bottle.html#example">Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="webapp.html">Macaron in Web Application</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="webapp.html#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="webapp.html#macaronplugin-class">MacaronPlugin class</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="models.html">Models</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="models.html#model-definition">Model definition</a></li>
 <li class="toctree-l2"><a class="reference internal" href="models.html#using-models">Using models</a></li>
-<li class="toctree-l2"><a class="reference internal" href="models.html#hooks">Hooks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#customizing-fields-and-behaviors-of-models">Customizing fields and behaviors of models</a></li>
 </ul>
 </li>
+</ul>
+</div>
+</div>
+<div class="section" id="reference-guide">
+<h2>Reference Guide<a class="headerlink" href="#reference-guide" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="module.html">Module contents</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="module.html#usage">Usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="module.html#module-attributes">Module attributes</a></li>
@@ -131,8 +152,13 @@
 <li class="toctree-l2"><a class="reference internal" href="class/model.html#instance-methods">Instance methods</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="class/field.html">Field reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="class/field.html#instance-methods">Instance methods</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="class/queryset.html">QuerySet reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="class/queryset.html#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="class/queryset.html#instance-methods">Instance methods</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="class/macaron.html">The Macaron related classes</a></li>

@@ -24,7 +24,7 @@
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="Macaron v0.3.0-dev documentation" href="index.html" />
     <link rel="next" title="Module contents" href="module.html" />
-    <link rel="prev" title="Macaron with Bottle web framework" href="bottle.html" /> 
+    <link rel="prev" title="Macaron in Web Application" href="webapp.html" /> 
   </head>
   <body>
     <div class="related">
@@ -40,7 +40,7 @@
           <a href="module.html" title="Module contents"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="bottle.html" title="Macaron with Bottle web framework"
+          <a href="webapp.html" title="Macaron in Web Application"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
@@ -55,21 +55,23 @@
 <li><a class="reference internal" href="#">Models</a><ul>
 <li><a class="reference internal" href="#model-definition">Model definition</a><ul>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
-<li><a class="reference internal" href="#auto-updating-experimental">Auto updating (EXPERIMENTAL)</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#using-models">Using models</a><ul>
+<li><a class="reference internal" href="#field-definition">Field definition</a></li>
 <li><a class="reference internal" href="#relationships">Relationships</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#hooks">Hooks</a></li>
+<li><a class="reference internal" href="#using-models">Using models</a></li>
+<li><a class="reference internal" href="#customizing-fields-and-behaviors-of-models">Customizing fields and behaviors of models</a><ul>
+<li><a class="reference internal" href="#field-types">Field types</a></li>
+<li><a class="reference internal" href="#hooks-in-model">Hooks in model</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="bottle.html"
-                        title="previous chapter">Macaron with Bottle web framework</a></p>
+  <p class="topless"><a href="webapp.html"
+                        title="previous chapter">Macaron in Web Application</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="module.html"
                         title="next chapter">Module contents</a></p>
@@ -104,7 +106,7 @@
 <p>A model corresponds to the table of your database. It contains relationships and behaviors of the data.</p>
 <p>The basics:</p>
 <ul class="simple">
-<li>Each model is a Python class that subclasses <a class="reference internal" href="class/model.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">macaron.Model</span></tt></a>.</li>
+<li>Each model is a Python class that subclasses <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">macaron.Model</span></tt></a>.</li>
 <li>Each database field is represented into attribute of the model.</li>
 <li>Macaron defines attributes of the model from the table information automatically.</li>
 <li>Macaron&#8217;s model likes Django&#8217;s one.</li>
@@ -118,7 +120,7 @@
 <span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
 </pre></div>
 </div>
-<p>The above <tt class="docutils literal"><span class="pre">Member</span></tt> model corrensponds to a database table like this:</p>
+<p>The above <tt class="docutils literal"><span class="pre">Member</span></tt> model corresponds to a database table like this:</p>
 <div class="highlight-python"><pre>CREATE TABLE member (
     id          INTEGER PRIMARY KEY,
     first_name  TEXT,
@@ -127,28 +129,80 @@
 );</pre>
 </div>
 <p>Macaron does not create a table for simplified implementation, so attributes of the model is defined according to the table definition. In generally use, you need not modify the class definition of the model when the database table is modified.</p>
-<p>Technical notes:</p>
-<ul class="simple">
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ul class="last simple">
 <li>The name of the table, <tt class="docutils literal"><span class="pre">member</span></tt>, is automatically derived from class name, <tt class="docutils literal"><span class="pre">Member</span></tt>, but can be specified with <tt class="docutils literal"><span class="pre">_table_name</span></tt> property.</li>
 <li>You need <tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">TABLE</span></tt> manually.</li>
 </ul>
 </div>
-<div class="section" id="auto-updating-experimental">
-<h3>Auto updating (EXPERIMENTAL)<a class="headerlink" href="#auto-updating-experimental" title="Permalink to this headline">¶</a></h3>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">This function is experimental implementation. It may be changed in future release.</p>
 </div>
-<p>You can specify fields which need to update at <tt class="docutils literal"><span class="pre">INSERT</span></tt> or <tt class="docutils literal"><span class="pre">UPDATE</span></tt>. For example, the member table in above has <tt class="docutils literal"><span class="pre">joined</span></tt> field which means created time. In the situation, you define <tt class="docutils literal"><span class="pre">Member</span></tt> like this.</p>
+<div class="section" id="field-definition">
+<h3>Field definition<a class="headerlink" href="#field-definition" title="Permalink to this headline">¶</a></h3>
+<p>Most simple case, you do not define your :class:Model classes except class definition. But you define fields on your :class:Models, the fields have validation and conversion mechanism. Field definition example is below.</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
-    <span class="n">joined</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">NowAtCreate</span><span class="p">()</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">joined</span> <span class="o">=</span> <span class="n">macaon</span><span class="o">.</span><span class="n">NowAtCreate</span><span class="p">()</span>
+    <span class="n">modified</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">NowAtSave</span><span class="p">()</span>
+    <span class="n">point</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>When you create a new member, <em>Macaron</em> set the created time to <tt class="docutils literal"><span class="pre">joined</span></tt> field. In addition, you can specified <tt class="xref py py-class docutils literal"><span class="pre">NowAtSave</span></tt> for <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</p>
+<p>In the code, the <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a>, <a class="reference internal" href="#macaron.NowAtSave" title="macaron.NowAtSave"><tt class="xref py py-class docutils literal"><span class="pre">NowAtSave</span></tt></a>, <cite>IntegerField</cite>, and <cite>CharField</cite>. The former two classes differs from the latter two ones. Built-in classes are described below.</p>
+<dl class="class">
+<dt id="macaron.NowAtCreate">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NowAtCreate</tt><a class="headerlink" href="#macaron.NowAtCreate" title="Permalink to this definition">¶</a></dt>
+<dd><p>This sets time created when <tt class="docutils literal"><span class="pre">INSERT</span></tt> is conducted.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="macaron.NowAtSave">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NowAtSave</tt><a class="headerlink" href="#macaron.NowAtSave" title="Permalink to this definition">¶</a></dt>
+<dd><p>This sets time modified when <tt class="docutils literal"><span class="pre">UPDATE</span></tt> is conducted.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="macaron.NumberField">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NumberField</tt><big>(</big><span class="optional">[</span><em>min</em>, <em>max</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.NumberField" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>min</strong> &#8211; minimum value</li>
+<li><strong>max</strong> &#8211; maximum value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>This is for number field. The minimum and maximum values can be specified.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="macaron.IntegerField">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">IntegerField</tt><big>(</big><span class="optional">[</span><em>min</em>, <em>max</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.IntegerField" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is for integer field.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="macaron.CharField">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">CharField</tt><big>(</big><span class="optional">[</span><em>min_length</em>, <em>max_length</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.CharField" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>min_length</strong> &#8211; minimum length</li>
+<li><strong>max_length</strong> &#8211; maximum length</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>This is for text field. If you want to check the text length, you can specified <tt class="docutils literal"><span class="pre">min_length</span></tt> and <tt class="docutils literal"><span class="pre">max_length</span></tt>.</p>
+</dd></dl>
+
 </div>
-</div>
-<div class="section" id="using-models">
-<h2>Using models<a class="headerlink" href="#using-models" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="relationships">
 <h3>Relationships<a class="headerlink" href="#relationships" title="Permalink to this headline">¶</a></h3>
 <p>If you use a single table which has no relationship is very simple, which is described above. However, it is not a thing you hope. Macaron supports &#8220;Many-to-One&#8221; relationships and needs the field information in the class definition. See below.</p>
@@ -172,8 +226,9 @@ CREATE TABLE member (
     age         INT
 );</pre>
 </div>
-<p>Technical notes:</p>
-<ul class="simple">
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ul class="last simple">
 <li>The parameters <tt class="docutils literal"><span class="pre">related_name</span></tt>, <tt class="docutils literal"><span class="pre">fkey</span></tt> (foreign key), and <tt class="docutils literal"><span class="pre">key</span></tt> of <tt class="xref py py-class docutils literal"><span class="pre">macaron.ManyToOne</span></tt> can be omitted. Then, parameters are specified as below.<ul>
 <li>The <tt class="docutils literal"><span class="pre">related_name</span></tt> is derived from <tt class="docutils literal"><span class="pre">Team</span></tt> and &#8216;_set&#8217;, i.e. &#8216;team_set&#8217;.</li>
 <li>The <tt class="docutils literal"><span class="pre">fkey</span></tt> is specified as <tt class="docutils literal"><span class="pre">Team</span></tt>&#8216;s table name and &#8216;_id&#8217;, i.e. &#8216;team_id&#8217;.</li>
@@ -181,20 +236,78 @@ CREATE TABLE member (
 </ul>
 </li>
 </ul>
+</div>
 <p>In this example, a Many-to-One relationship which represents that a <tt class="docutils literal"><span class="pre">Member</span></tt> has a <tt class="docutils literal"><span class="pre">Team</span></tt> &#8211; means a <tt class="docutils literal"><span class="pre">Member</span></tt> belongs to a <tt class="docutils literal"><span class="pre">Team</span></tt> but each <tt class="docutils literal"><span class="pre">Member</span></tt> only belongs to one <tt class="docutils literal"><span class="pre">Team</span></tt> &#8211; is defined as above.</p>
-<p>Tha attribute <tt class="docutils literal"><span class="pre">team</span></tt> of <tt class="docutils literal"><span class="pre">Member</span></tt> class relate the <tt class="docutils literal"><span class="pre">Member</span></tt> and <tt class="docutils literal"><span class="pre">Team</span></tt>. This definition also create <em>recursive relationships</em> (an object with a Many-to-One relationship to itself), automatically. If you want to call the field to another name, you can it.</p>
+<p>The attribute <tt class="docutils literal"><span class="pre">team</span></tt> of <tt class="docutils literal"><span class="pre">Member</span></tt> class relate the <tt class="docutils literal"><span class="pre">Member</span></tt> and <tt class="docutils literal"><span class="pre">Team</span></tt>. This definition also create <em>recursive relationships</em> (an object with a Many-to-One relationship to itself), automatically. If you want to call the field to another name, you can it.</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">belongs_to</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="n">Team</span><span class="p">,</span> <span class="n">fkey</span><span class="o">=</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 </div>
-<div class="section" id="hooks">
-<h2>Hooks<a class="headerlink" href="#hooks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="using-models">
+<h2>Using models<a class="headerlink" href="#using-models" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="customizing-fields-and-behaviors-of-models">
+<h2>Customizing fields and behaviors of models<a class="headerlink" href="#customizing-fields-and-behaviors-of-models" title="Permalink to this headline">¶</a></h2>
+<p>Macaron&#8217;s model class is designed flexible. You can customize field types and before and after <tt class="docutils literal"><span class="pre">INSERT</span></tt> and <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</p>
+<div class="section" id="field-types">
+<h3>Field types<a class="headerlink" href="#field-types" title="Permalink to this headline">¶</a></h3>
+<p>Field definition section describes how to use field classes. This section describes how to customize fields. Field type classes are derived from base class <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt> or subclasses of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. Now there are <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> and <tt class="xref py py-class docutils literal"><span class="pre">AtSave</span></tt> subclasses derived from <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. For example, <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a> is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> (i.e. it is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>, too).</p>
+<p>For example, <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a> is implemented as below.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">NowAtCreate</span><span class="p">(</span><span class="n">AtCreate</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The <tt class="xref py py-meth docutils literal"><span class="pre">NowAtCreate.set()</span></tt> is called when object is inserted to database. In this way, implementing some callback methods and you can control behaviors of model objects.</p>
+<p>These methods are called in below sequence.</p>
 <ul class="simple">
-<li>before_create</li>
-<li>before_save</li>
+<li>In <tt class="docutils literal"><span class="pre">INSERT</span></tt> and <tt class="docutils literal"><span class="pre">UPDATE</span></tt><ol class="arabic">
+<li>The <a class="reference internal" href="class/field.html#macaron.Field.set" title="macaron.Field.set"><tt class="xref py py-meth docutils literal"><span class="pre">Field.set()</span></tt></a> is called at <tt class="docutils literal"><span class="pre">INSERT</span></tt> or <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</li>
+<li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.validate()</span></tt> is called for validation.</li>
+<li>The <a class="reference internal" href="#macaron.Model.before_create" title="macaron.Model.before_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_create()</span></tt></a> or <a class="reference internal" href="#macaron.Model.before_save" title="macaron.Model.before_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_save()</span></tt></a> is called (see next section).</li>
+<li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.to_database()</span></tt> is called.</li>
+<li>SQL is conducted.</li>
+<li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.to_object()</span></tt> is called with new record from database.</li>
+<li>The <a class="reference internal" href="#macaron.Model.after_create" title="macaron.Model.after_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_create()</span></tt></a> or <a class="reference internal" href="#macaron.Model.after_save" title="macaron.Model.after_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_save()</span></tt></a> is called (see next section).</li>
+</ol>
+</li>
+<li>In <tt class="docutils literal"><span class="pre">SELECT</span></tt><ol class="arabic">
+<li>SQL is conducted.</li>
+<li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.to_object()</span></tt> is called with selected record.</li>
+</ol>
+</li>
 </ul>
+</div>
+<div class="section" id="hooks-in-model">
+<h3>Hooks in model<a class="headerlink" href="#hooks-in-model" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="macaron.Model">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Model</tt><a class="headerlink" href="#macaron.Model" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="macaron.Model.before_create">
+<tt class="descname">before_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.before_save">
+<tt class="descname">before_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.after_create">
+<tt class="descname">after_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.after_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="macaron.Model.after_save">
+<tt class="descname">after_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.after_save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
 </div>
 </div>
 
@@ -217,7 +330,7 @@ CREATE TABLE member (
           <a href="module.html" title="Module contents"
              >next</a> |</li>
         <li class="right" >
-          <a href="bottle.html" title="Macaron with Bottle web framework"
+          <a href="webapp.html" title="Macaron in Web Application"
              >previous</a> |</li>
         <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>

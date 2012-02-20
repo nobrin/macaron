@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Field reference &mdash; Macaron v0.3.0-dev documentation</title>
+    <link rel="stylesheet" href="../static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.3.0-dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.3.0-dev documentation" href="../index.html" />
+    <link rel="next" title="QuerySet reference" href="queryset.html" />
+    <link rel="prev" title="Model class reference" href="model.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="queryset.html" title="QuerySet reference"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="model.html" title="Model class reference"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../static/macaron_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Field reference</a><ul>
+<li><a class="reference internal" href="#instance-methods">Instance methods</a><ul>
+<li><a class="reference internal" href="#set"><tt class="docutils literal"><span class="pre">set</span></tt></a></li>
+<li><a class="reference internal" href="#to-database"><tt class="docutils literal"><span class="pre">to_database</span></tt></a></li>
+<li><a class="reference internal" href="#to-object"><tt class="docutils literal"><span class="pre">to_object</span></tt></a></li>
+<li><a class="reference internal" href="#validate"><tt class="docutils literal"><span class="pre">validate</span></tt></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="model.html"
+                        title="previous chapter">Model class reference</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="queryset.html"
+                        title="next chapter">QuerySet reference</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../sources/class/field.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="field-reference">
+<h1>Field reference<a class="headerlink" href="#field-reference" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="instance-methods">
+<h2>Instance methods<a class="headerlink" href="#instance-methods" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="set">
+<h3><tt class="docutils literal"><span class="pre">set</span></tt><a class="headerlink" href="#set" title="Permalink to this headline">¶</a></h3>
+<dl class="method">
+<dt id="macaron.Field.set">
+<tt class="descclassname">Field.</tt><tt class="descname">set</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.set" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>obj</strong> &#8211; current model object</li>
+<li><strong>value</strong> &#8211; current value</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">new value</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="to-database">
+<h3><tt class="docutils literal"><span class="pre">to_database</span></tt><a class="headerlink" href="#to-database" title="Permalink to this headline">¶</a></h3>
+<dl class="method">
+<dt id="macaron.to_database">
+<tt class="descclassname">macaron.</tt><tt class="descname">to_database</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.to_database" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body">value which is stored into database</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="to-object">
+<h3><tt class="docutils literal"><span class="pre">to_object</span></tt><a class="headerlink" href="#to-object" title="Permalink to this headline">¶</a></h3>
+<dl class="method">
+<dt id="macaron.to_object">
+<tt class="descclassname">macaron.</tt><tt class="descname">to_object</tt><big>(</big><em>row</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.to_object" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>row</strong> &#8211; raw record from database</li>
+<li><strong>value</strong> &#8211; current value from database</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">value which is set into field of model</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="validate">
+<h3><tt class="docutils literal"><span class="pre">validate</span></tt><a class="headerlink" href="#validate" title="Permalink to this headline">¶</a></h3>
+<dl class="method">
+<dt id="macaron.validate">
+<tt class="descclassname">macaron.</tt><tt class="descname">validate</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.validate" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><tt class="xref py py-exc docutils literal"><span class="pre">ValidationError</span></tt> when validation failed</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><tt class="xref docutils literal"><span class="pre">True</span></tt> when validation succeeded</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="queryset.html" title="QuerySet reference"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="model.html" title="Model class reference"
+             >previous</a> |</li>
+        <li><a href="../index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>

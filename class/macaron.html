@@ -94,38 +94,14 @@
 <dl class="method">
 <dt id="macaron.Macaron.get_connection">
 <tt class="descname">get_connection</tt><big>(</big><em>meta_obj</em><big>)</big><a class="headerlink" href="#macaron.Macaron.get_connection" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
+<dd><p>Returns Connection and adds reference to the object which uses it.</p>
 </dd></dl>
-
-<dl class="class">
-<dt id="macaron.Field">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Field</tt><a class="headerlink" href="#macaron.Field" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="macaron.Field.set">
-<tt class="descname">set</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.set" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Field.to_database">
-<tt class="descname">to_database</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.to_database" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Field.to_object">
-<tt class="descname">to_object</tt><big>(</big><em>row</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.to_object" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Field.validate">
-<tt class="descname">validate</tt><big>(</big><em>obj</em>, <em>value</em><big>)</big><a class="headerlink" href="#macaron.Field.validate" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="class">
 <dt id="macaron.TableMetaInfo">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">TableMetaInfo</tt><big>(</big><em>conn</em>, <em>table_name</em><big>)</big><a class="headerlink" href="#macaron.TableMetaInfo" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">TableMetaInfo</tt><big>(</big><em>conn</em>, <em>table_name</em>, <em>cls</em><big>)</big><a class="headerlink" href="#macaron.TableMetaInfo" title="Permalink to this definition">¶</a></dt>
 <dd><p>Table information class.
 This object has table information, which is set to ModelClass._meta by
 <tt class="xref py py-class docutils literal"><span class="pre">ModelMeta</span></tt>. If you use <tt class="docutils literal"><span class="pre">Bookmark</span></tt> class, you can access the
@@ -139,7 +115,7 @@ table information with <tt class="docutils literal"><span class="pre">Bookmark._
 <dl class="attribute">
 <dt id="macaron.TableMetaInfo.primary_key">
 <tt class="descname">primary_key</tt><a class="headerlink" href="#macaron.TableMetaInfo.primary_key" title="Permalink to this definition">¶</a></dt>
-<dd><p>Primary key <a class="reference internal" href="#macaron.Field" title="macaron.Field"><tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt></a></p>
+<dd><p>Primary key <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt></p>
 </dd></dl>
 
 <dl class="attribute">

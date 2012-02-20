@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Macaron in Web Application &mdash; Macaron v0.3.0-dev documentation</title>
+    <link rel="stylesheet" href="static/macaron.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.0-dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="Macaron v0.3.0-dev documentation" href="index.html" />
+    <link rel="next" title="Models" href="models.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="models.html" title="Models"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="static/macaron_logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Macaron in Web Application</a><ul>
+<li><a class="reference internal" href="#example">Example</a></li>
+<li><a class="reference internal" href="#macaronplugin-class">MacaronPlugin class</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Tutorial</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="models.html"
+                        title="next chapter">Models</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/webapp.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="macaron-in-web-application">
+<h1>Macaron in Web Application<a class="headerlink" href="#macaron-in-web-application" title="Permalink to this headline">¶</a></h1>
+<p><em>Macaron</em> provides a plugin which simplifies the use of <a class="reference external" href="http://bottlepy.org/">Bottle</a> in your web application. Bottle is a micro web framework for Python. To use it, simply, you just call <tt class="xref py py-func docutils literal"><span class="pre">bottle.install()</span></tt> with <a class="reference internal" href="#macaron.MacaronPlugin" title="macaron.MacaronPlugin"><tt class="xref py py-class docutils literal"><span class="pre">MacaronPlugin</span></tt></a> instance. After that you use it the way you&#8217;ve always done it.</p>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<p>This is sample of using <a class="reference internal" href="#macaron.MacaronPlugin" title="macaron.MacaronPlugin"><tt class="xref py py-class docutils literal"><span class="pre">MacaronPlugin</span></tt></a> in Bottle web application.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="kn">from</span> <span class="nn">bottle</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">macaron</span>
+
+<span class="c"># install MacaronPlugin instance</span>
+<span class="n">DB_FILE</span> <span class="o">=</span> <span class="s">&quot;bookmark.db&quot;</span>
+<span class="n">install</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">MacaronPlugin</span><span class="p">(</span><span class="n">DB_FILE</span><span class="p">))</span>
+
+<span class="c"># Class definition</span>
+<span class="k">class</span> <span class="nc">Bookmark</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="c"># Route definition</span>
+<span class="nd">@route</span><span class="p">(</span><span class="s">&quot;/hello&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">index</span><span class="p">():</span>
+    <span class="n">html</span> <span class="o">=</span> <span class="s">&quot;&lt;html&gt;</span><span class="se">\n</span><span class="s">&lt;head&gt;&lt;title&gt;My Bookmarks&lt;/title&gt;&lt;/head&gt;</span><span class="se">\n</span><span class="s">&quot;</span>
+    <span class="n">html</span> <span class="o">+=</span> <span class="s">&quot;&lt;body&gt;</span><span class="se">\n</span><span class="s">&lt;h1&gt;My Bookmarks&lt;/h1&gt;</span><span class="se">\n</span><span class="s">&lt;ul&gt;</span><span class="se">\n</span><span class="s">&quot;</span>
+    <span class="k">for</span> <span class="n">bookmark</span> <span class="ow">in</span> <span class="n">Bookmark</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+        <span class="n">html</span> <span class="o">+=</span> <span class="s">&#39;&lt;li&gt;&lt;a href=&quot;</span><span class="si">%s</span><span class="s">&quot;&gt;</span><span class="si">%s</span><span class="s">&lt;/a&gt;&lt;/li&gt;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bookmark</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">bookmark</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">html</span> <span class="o">+=</span> <span class="s">&quot;&lt;/ul&gt;</span><span class="se">\n</span><span class="s">&lt;/body&gt;</span><span class="se">\n</span><span class="s">&lt;/html&gt;</span><span class="se">\n</span><span class="s">&quot;</span>
+    <span class="k">return</span> <span class="n">html</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="macaronplugin-class">
+<h2>MacaronPlugin class<a class="headerlink" href="#macaronplugin-class" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="macaron.MacaronPlugin">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">MacaronPlugin</tt><big>(</big><em>dbfile</em><span class="optional">[</span>, <em>autocommit=True</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.MacaronPlugin" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>dbfile</strong> &#8211; database file name.</li>
+<li><strong>autocommit</strong> &#8211; Macaron will be commit automatically after execution of bottle.Route.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>In this plugin, Macaron opens connection when <a class="reference internal" href="models.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a> class is used.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="models.html" title="Models"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Tutorial"
+             >previous</a> |</li>
+        <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Nobuo Okazaki.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
