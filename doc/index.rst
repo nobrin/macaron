@@ -26,6 +26,20 @@ Example::
     >>> macaron.db_close()
 
 
+Features
+========
+
+Macaron aims to make the use of database easy for small applications.
+
+* A object-relational mapper (ORM) for SQLite.
+* There are no dependencies except Python Standard Library.
+* Auto-definition of model fields from database tables.
+* Many-To-One relationships are supported.
+* Pre-defined and user-defined validator can be used.
+* Plugin for Bottle which is a micro-sized web framework is included.
+* Module consists of only single file.
+
+
 User's Guide
 ============
 

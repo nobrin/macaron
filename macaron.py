@@ -425,7 +425,7 @@ class QuerySet(object):
             self.clauses = copy.deepcopy(parent.clauses)
         else:
             self.cls = parent
-            self.clauses = {"where": [], "order_by": [], "values": [], "distinct": False}
+            self.clauses = {"type": "SELECT", "where": [], "order_by": [], "values": [], "distinct": False}
         self.clauses["offset"] = 0
         self.clauses["limit"] = 0
         self.clauses["select_fields"] = "*"
@@ -441,13 +441,20 @@ class QuerySet(object):
     def _generate_sql(self):
         if self.clauses["distinct"]: distinct = "DISTINCT "
         else: distinct = ""
-        sqls = ["SELECT %s%s FROM %s" % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+
+        if self.clauses["type"] == "DELETE":
+            sqls = ["DELETE FROM %s" % self.cls._meta.table_name]
+        else:
+            sqls = ["SELECT %s%s FROM %s" % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
-        if len(self.clauses["order_by"]):
-            sqls.append("ORDER BY %s" % ", ".join(self.clauses["order_by"]))
-        if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
-        if self.clauses["limit"]: sqls.append("LIMIT %d" % self.clauses["limit"])
+
+        if self.clauses["type"] == "SELECT":
+            if len(self.clauses["order_by"]):
+                sqls.append("ORDER BY %s" % ", ".join(self.clauses["order_by"]))
+            if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
+            if self.clauses["limit"]: sqls.append("LIMIT %d" % self.clauses["limit"])
         return "\n".join(sqls)
     sql = property(_generate_sql)   #: Generating SQL
 
@@ -488,6 +495,10 @@ class QuerySet(object):
 
     def all(self):
         return self.select()
+
+    def delete(self):
+        self.clauses["type"] = "DELETE"
+        self._execute()
 
     def distinct(self):
         """EXPERIMENTAL:

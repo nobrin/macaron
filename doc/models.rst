@@ -33,7 +33,7 @@ The above ``Member`` model corresponds to a database table like this:
 
     CREATE TABLE member (
         id          INTEGER PRIMARY KEY,
-        first_name  TEXT,
+        first_name  TEXT DEFAULT 'unknown',
         last_name   TEXT,
         joined      TIMESTAMP
     );
@@ -44,32 +44,33 @@ Macaron does not create a table for simplified implementation, so attributes of 
 
    - The name of the table, ``member``, is automatically derived from class name, ``Member``, but can be specified with ``_table_name`` property.
    - You need ``CREATE TABLE`` manually.
+   - DEFAULT property is auto-detected.
 
 
 Field definition
 ----------------
 
-Most simple case, you do not define your :class:Model classes except class definition. But you define fields on your :class:Models, the fields have validation and conversion mechanism. Field definition example is below.
+Most simple case, you do not define your :class:`Model` classes except class definition. But you should define fields on your :class:`Model`\ s, the fields have validation and conversion mechanism. Field definition example is below.
 
 ::
 
     class Member(macaron.Model):
         name = macaron.CharField(max_length=20)
-        joined = macaon.NowAtCreate()
-        modified = macaron.NowAtSave()
+        joined = macaon.TimestampAtCreate()
+        modified = macaron.TimestampAtSave()
         point = macaron.IntegerField(min=0, max=20)
 
 In the code, the :class:`NowAtCreate`, :class:`NowAtSave`, `IntegerField`, and `CharField`. The former two classes differs from the latter two ones. Built-in classes are described below.
 
-.. class:: NowAtCreate()
+.. class:: TimestampAtCreate()
 
    This sets time created when ``INSERT`` is conducted.
 
-.. class:: NowAtSave()
+.. class:: TimestampAtSave()
 
    This sets time modified when ``UPDATE`` is conducted.
 
-.. class:: NumberField([min, max])
+.. class:: FloatField([min, max])
 
    :param min: minimum value
    :param max: maximum value

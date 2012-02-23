@@ -89,6 +89,13 @@ class TestMacaron(unittest.TestCase):
         member = Member.get(3)
         self.assertEqual(member.part, "Castanets")
 
+        # Delete all members
+        self.assertEqual(team.members.count(), 4)
+        team.members.select("first_name=?", ["Ritsu"]).delete()
+        self.assertEqual(team.members.count(), 3)
+        team.members.delete()
+        self.assertEqual(team.members.count(), 0)
+
         # cancel the changes
         macaron.rollback()
 
