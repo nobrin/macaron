@@ -91,14 +91,6 @@ class TestMacaron(unittest.TestCase):
         def _too_long_part_name(): member1.part = "1234567890A"
         self.assertRaises(macaron.ValidationError, _too_long_part_name)
 
-    def testDeleteCacade(self):
-        macaron.execute("PRAGMA foreign_keys = ON")
-        team = Team.create(name="Azu-nyan Team")
-        team.members.append(first_name="Azusa", last_name="Nakano", part="Gt")
-        team.members.append(first_name="Ui", last_name="Hirasawa", part="Or")
-        team.delete()
-        print Member.all().count()
-
 if __name__ == "__main__":
 #    if os.path.isfile(DB_FILE): os.unlink(DB_FILE)
     unittest.main()
