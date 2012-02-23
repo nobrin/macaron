@@ -123,7 +123,7 @@
 <p>The above <tt class="docutils literal"><span class="pre">Member</span></tt> model corresponds to a database table like this:</p>
 <div class="highlight-python"><pre>CREATE TABLE member (
     id          INTEGER PRIMARY KEY,
-    first_name  TEXT,
+    first_name  TEXT DEFAULT 'unknown',
     last_name   TEXT,
     joined      TIMESTAMP
 );</pre>
@@ -134,35 +134,36 @@
 <ul class="last simple">
 <li>The name of the table, <tt class="docutils literal"><span class="pre">member</span></tt>, is automatically derived from class name, <tt class="docutils literal"><span class="pre">Member</span></tt>, but can be specified with <tt class="docutils literal"><span class="pre">_table_name</span></tt> property.</li>
 <li>You need <tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">TABLE</span></tt> manually.</li>
+<li>DEFAULT property is auto-detected.</li>
 </ul>
 </div>
 </div>
 <div class="section" id="field-definition">
 <h3>Field definition<a class="headerlink" href="#field-definition" title="Permalink to this headline">¶</a></h3>
-<p>Most simple case, you do not define your :class:Model classes except class definition. But you define fields on your :class:Models, the fields have validation and conversion mechanism. Field definition example is below.</p>
+<p>Most simple case, you do not define your <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a> classes except class definition. But you should define fields on your <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a>s, the fields have validation and conversion mechanism. Field definition example is below.</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
-    <span class="n">joined</span> <span class="o">=</span> <span class="n">macaon</span><span class="o">.</span><span class="n">NowAtCreate</span><span class="p">()</span>
-    <span class="n">modified</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">NowAtSave</span><span class="p">()</span>
+    <span class="n">joined</span> <span class="o">=</span> <span class="n">macaon</span><span class="o">.</span><span class="n">TimestampAtCreate</span><span class="p">()</span>
+    <span class="n">modified</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">TimestampAtSave</span><span class="p">()</span>
     <span class="n">point</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>In the code, the <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a>, <a class="reference internal" href="#macaron.NowAtSave" title="macaron.NowAtSave"><tt class="xref py py-class docutils literal"><span class="pre">NowAtSave</span></tt></a>, <cite>IntegerField</cite>, and <cite>CharField</cite>. The former two classes differs from the latter two ones. Built-in classes are described below.</p>
+<p>In the code, the <tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">NowAtSave</span></tt>, <cite>IntegerField</cite>, and <cite>CharField</cite>. The former two classes differs from the latter two ones. Built-in classes are described below.</p>
 <dl class="class">
-<dt id="macaron.NowAtCreate">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NowAtCreate</tt><a class="headerlink" href="#macaron.NowAtCreate" title="Permalink to this definition">¶</a></dt>
+<dt id="macaron.TimestampAtCreate">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">TimestampAtCreate</tt><a class="headerlink" href="#macaron.TimestampAtCreate" title="Permalink to this definition">¶</a></dt>
 <dd><p>This sets time created when <tt class="docutils literal"><span class="pre">INSERT</span></tt> is conducted.</p>
 </dd></dl>
 
 <dl class="class">
-<dt id="macaron.NowAtSave">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NowAtSave</tt><a class="headerlink" href="#macaron.NowAtSave" title="Permalink to this definition">¶</a></dt>
+<dt id="macaron.TimestampAtSave">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">TimestampAtSave</tt><a class="headerlink" href="#macaron.TimestampAtSave" title="Permalink to this definition">¶</a></dt>
 <dd><p>This sets time modified when <tt class="docutils literal"><span class="pre">UPDATE</span></tt> is conducted.</p>
 </dd></dl>
 
 <dl class="class">
-<dt id="macaron.NumberField">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">NumberField</tt><big>(</big><span class="optional">[</span><em>min</em>, <em>max</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.NumberField" title="Permalink to this definition">¶</a></dt>
+<dt id="macaron.FloatField">
+<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">FloatField</tt><big>(</big><span class="optional">[</span><em>min</em>, <em>max</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#macaron.FloatField" title="Permalink to this definition">¶</a></dt>
 <dd><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -253,8 +254,8 @@ CREATE TABLE member (
 <p>Macaron&#8217;s model class is designed flexible. You can customize field types and before and after <tt class="docutils literal"><span class="pre">INSERT</span></tt> and <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</p>
 <div class="section" id="field-types">
 <h3>Field types<a class="headerlink" href="#field-types" title="Permalink to this headline">¶</a></h3>
-<p>Field definition section describes how to use field classes. This section describes how to customize fields. Field type classes are derived from base class <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt> or subclasses of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. Now there are <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> and <tt class="xref py py-class docutils literal"><span class="pre">AtSave</span></tt> subclasses derived from <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. For example, <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a> is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> (i.e. it is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>, too).</p>
-<p>For example, <a class="reference internal" href="#macaron.NowAtCreate" title="macaron.NowAtCreate"><tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt></a> is implemented as below.:</p>
+<p>Field definition section describes how to use field classes. This section describes how to customize fields. Field type classes are derived from base class <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt> or subclasses of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. Now there are <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> and <tt class="xref py py-class docutils literal"><span class="pre">AtSave</span></tt> subclasses derived from <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>. For example, <tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt> is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">AtCreate</span></tt> (i.e. it is a subclass of <tt class="xref py py-class docutils literal"><span class="pre">Field</span></tt>, too).</p>
+<p>For example, <tt class="xref py py-class docutils literal"><span class="pre">NowAtCreate</span></tt> is implemented as below.:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">NowAtCreate</span><span class="p">(</span><span class="n">AtCreate</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>

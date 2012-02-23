@@ -110,7 +110,8 @@ CREATE TABLE member (
     table_id    INTEGER REFERENCES team (id),
     first_name  TEXT,
     last_name   TEXT,
-    part        TEXT
+    part        TEXT,
+    age         INT
 );</pre>
 </div>
 <p>You need creating tables into <em>members.db</em> file with the SQL.</p>
@@ -125,8 +126,10 @@ CREATE TABLE member (
 <span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Definition of Member table</span>
 <span class="sd">    team is a class property and accessor for parent &#39;Team&#39; object.</span>
+<span class="sd">    Macaron detects some field types, but if you want to validate, defining criteria.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">Team</span><span class="p">,</span> <span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="s">&quot;members&quot;</span><span class="p">)</span>
+    <span class="n">age</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;&lt;Member &#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> : </span><span class="si">%s</span><span class="s">&#39;&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">part</span><span class="p">)</span>
@@ -145,27 +148,30 @@ CREATE TABLE member (
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">macaron</span>
 
 <span class="c"># A macaron needs &#39;macaronage&#39; process.</span>
-<span class="c"># The macaronage() initializes db connection with file name.</span>
+<span class="c"># First of all, call macaron.macaronage() to initialize macaron. This method</span>
+<span class="c"># connect to &#39;members.db&#39; SQLite database file.</span>
 <span class="n">macaron</span><span class="o">.</span><span class="n">macaronage</span><span class="p">(</span><span class="s">&quot;members.db&quot;</span><span class="p">)</span>
 
 <span class="c"># Create a new team named &#39;Houkago Tea Time&#39;.</span>
-<span class="c"># Model.create() execute INSERT statement.</span>
+<span class="c"># A new team is created with Model.create(). The create() is a class method and is called</span>
+<span class="c"># with key word arguments which consist of field name and value pairs. It returns created Team</span>
+<span class="c"># object.</span>
 <span class="n">new_team</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Houkago Tea Time&quot;</span><span class="p">)</span>
 
 <span class="c"># Append new members to the team.</span>
-<span class="c"># new_team.members is an accessor for Member table.</span>
+<span class="c"># The Team object is into a variable named &#39;new_team&#39;, you will call new_team.members.append().</span>
+<span class="c"># &#39;new_team.members&#39; is an accessor for Members. The append() can be used with key word</span>
+<span class="c"># arguments like create() method and returns new created Member object.</span>
 <span class="n">member1</span> <span class="o">=</span> <span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Ritsu&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Tainaka&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Dr&quot;</span><span class="p">)</span>
 <span class="n">member2</span> <span class="o">=</span> <span class="n">new_team</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">first_name</span><span class="o">=</span><span class="s">&quot;Mio&quot;</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="s">&quot;Akiyama&quot;</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s">&quot;Ba&quot;</span><span class="p">)</span>
 
 <span class="c"># Yeah, all tasks has been done. Let&#39;s bake the macaron.</span>
-<span class="c"># Commit this changes to database.</span>
+<span class="c"># At last, we have created a team with initial members and should commit it. Call</span>
+<span class="c"># macaron.bake() which is a very wrapper to call sqlite3.Connection#commit().</span>
 <span class="n">macaron</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Call <strong>macaron.macaronage()</strong> to initialize macaron. This method connect to <strong>members.db</strong> SQLite database file. And a new team will be created with <em>ModelClass</em>.create() method. The <strong>create()</strong> is a class method and is called with key word arguments which consist field name and value pairs. It returns created Team object.</p>
-<p>A new team has come, let&#8217;s join new members to the team. The Team object is into a variable named <em>new_team</em>, you will call new_team.members.append(). The <strong>append()</strong> object method can be used with key word arguments like <strong>create()</strong> method and returns a new created Member object.</p>
 <p>Where the <em>members</em> propery is defined? The property is defined automatically in Member class definition. The <em>team</em> property of Member is set as an instance of <em>ManyToOne</em> and it works as accessor to many to one relationship. The ManyToOne add a property for accessing reverse relationship to Team class. In this case, the property is named <em>members</em>.</p>
-<p>At last, we have created a team with initial members and should commit it. Call <strong>macaron.bake()</strong> which is a very wrapper to call sqlite3.Connection#commit().</p>
 </div>
 <div class="section" id="fetching-records-and-updating">
 <h2>Fetching records and updating<a class="headerlink" href="#fetching-records-and-updating" title="Permalink to this headline">¶</a></h2>
