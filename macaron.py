@@ -25,7 +25,7 @@ Example::
     >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.2.1-dev"
+__version__ = "0.3.0"
 __license__ = "MIT License"
 
 import sqlite3, re
