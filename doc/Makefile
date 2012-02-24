@@ -42,7 +42,7 @@ gh-pages:
 	@echo "Building document as gh-pages in $(BUILDDIR)/html"
 	mkdir -p $(BUILDDIR)/html
 	cp -af ../../macaron/.git $(BUILDDIR)/html
-	cd $(BUILDDIR)/html; git checkout gh-pages
+	cd $(BUILDDIR)/html; git checkout gh-pages; git pull
 	$(SPHINXBUILD) -a -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

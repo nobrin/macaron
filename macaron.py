@@ -567,9 +567,7 @@ class ModelMeta(type):
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
 
 class Model(object):
-    """Base model class.
-    Models inherit the class.
-    """
+    """Base model class. Models must inherit this class."""
     __metaclass__ = ModelMeta
     _table_name = None  #: Database table name (the property will be deleted in ModelMeta)
     _meta = None        #: accessor for TableMetaInfo (set in ModelMeta)

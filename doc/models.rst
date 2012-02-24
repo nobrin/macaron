@@ -99,7 +99,7 @@ If you use a single table which has no relationship is very simple, which is des
     class Team(macaron.Model): pass
     
     class Member(macaron.Model):
-        team = macaron.ManyToOne(Team, related_name="members", fkey="team_id", key="id", related_name="members")
+        team = macaron.ManyToOne(Team, related_name="members", fkey="team_id", key="id")
 
 These Team and Member are defined as database tables in SQL.
 
@@ -179,12 +179,7 @@ These methods are called in below sequence.
 Hooks in model
 --------------
 
-.. class:: Model()
-
-   .. method:: before_create()
-   
-   .. method:: before_save()
-   
-   .. method:: after_create()
-
-   .. method:: after_save()
+- :meth:`Model.before_create()`
+- :meth:`Model.before_save()`
+- :meth:`Model.after_create()`
+- :meth:`Model.after_save()`

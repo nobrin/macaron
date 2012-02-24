@@ -28,11 +28,20 @@ Example::
     <Member 'Ritsu Tainaka : Dr'>
     <Member 'Mio Akiyama : Ba'>
 
-*Macaron* supports **many to one** relationships and reverse reference. Many to many relationships have not been supported yet. To realize simple implementation, *Macaron* does not provide methods for creation of tables.
+Macaron supports **Many-To-One** relationships and reverse reference. Many-To-Many relationships have not been supported yet. To realize simple implementation, Macaron does not provide methods for creation of tables.
 
 MacaronPlugin class for Bottle_ web framework is implemented.
 
-Homepage and documentation: http://nobrin.github.com/macaron/
+
+External resources
+==================
+
+- Homepage and documentation: http://nobrin.github.com/macaron/
+
+  - Documentation in Japanese: http://biokids.org/?Macaron
+
+- Python Package Index (PyPI): http://pypi.python.org/pypi/macaron
+- GitHub: https://github.com/nobrin/macaron
 
 
 Installation and Dependencies
@@ -40,8 +49,8 @@ Installation and Dependencies
 
 ::
 
-    tar zxvf macaron-0.1.dev.tar.gz
-    cd macaron-0.1.dev
+    tar zxvf macaron-0.3.0.tar.gz
+    cd macaron-0.3.0
     python setup.py
 
 or using easy_install::
@@ -49,10 +58,13 @@ or using easy_install::
     easy_install macaron
 
 
-Web application
-===============
+Use for Web Applications
+========================
 
-Bottle is lightweight web framework for Python. *Macaron* can be used with Bottle through MacaronPlugin. The MacaronPlugin is tested with Bottle 0.10.9.
+Macaron in the Bottle
+---------------------
+
+Bottle_ is a lightweight web framework for Python. Macaron can be used with Bottle through :class:`MacaronPlugin`, which is tested with Bottle 0.10.9.
 
 Example
 -------
@@ -63,7 +75,7 @@ Example
     from bottle import *
     import macaron
     
-    install(macaron.MacaronPlugin(dbfile="address.db"))
+    install(macaron.MacaronPlugin("address.db"))
     
     class Address(macaron.Model):
         _table_name = "address"
@@ -73,11 +85,9 @@ Example
         addr = Address.get(1)
         return "<h1>Hello!!</h1>My address is %s" % addr.address
     
-    run(host="0.0.0.0", port=8080)
+    run(host="localhost", port=8080)
 
 Implementation
 --------------
 
-
-MacaronPlugin create lazy connection. So the sqlite3.Connection object is create at call *Macaron* methods. In case of no use the methods in *route*, any connection is created.
-
+:class:`MacaronPlugin` create lazy connection. So the :class:`sqlite3.Connection` object is create at call Macaron methods. In case of no use the methods in :meth:`bottle.route`, any connection is created.
