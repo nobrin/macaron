@@ -12,7 +12,7 @@
 Example
 =======
 
-This is sample of using :class:`MacaronPlugin` in Bottle web application.
+This is sample of using :class:`MacaronPlugin` in Bottle web application. And runnable sample is found at ``examples/bottle/`` in the source tree.
 
 ::
 
