@@ -7,6 +7,11 @@
 Instance methods
 ================
 
+``initialize_after_meta``
+-------------------------
+
+.. method:: Field.initialize_after_meta()
+
 ``set``
 -------
 

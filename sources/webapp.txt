@@ -1,12 +1,15 @@
 .. _Bottle: http://bottlepy.org/
 
-============================
- Macaron in Web Application 
-============================
+==============================
+ Macaron for Web Applications 
+==============================
 
 .. currentmodule:: macaron
 
-*Macaron* provides a plugin which simplifies the use of Bottle_ in your web application. Bottle is a micro web framework for Python. To use it, simply, you just call :func:`bottle.install` with :class:`MacaronPlugin` instance. After that you use it the way you've always done it.
+Macaron in the Bottle
+=====================
+
+Macaron includes a plugin which simplifies the use of Bottle_ in your web applications. Bottle is a micro web framework for Python. To use it, simply, you just call :func:`bottle.install` with :class:`MacaronPlugin` instance. After that you use it the way you've always done it.
 
 
 Example
@@ -38,7 +41,7 @@ This is sample of using :class:`MacaronPlugin` in Bottle web application. And ru
         return html
     
     if __name__ == "__main__":
-        run(host="0.0.0.0", port=8080)
+        run(host="localhost", port=8080)
 
 
 MacaronPlugin class
@@ -49,4 +52,4 @@ MacaronPlugin class
    :param dbfile: database file name.
    :param autocommit: Macaron will be commit automatically after execution of bottle.Route.
 
-   In this plugin, Macaron opens connection when :class:`Model` class is used.
+   In this plugin, Macaron opens connection when :class:`Model` class is used (*Lazy* connection).

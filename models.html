@@ -24,7 +24,7 @@
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="Macaron v0.3.0-dev documentation" href="index.html" />
     <link rel="next" title="Module contents" href="module.html" />
-    <link rel="prev" title="Macaron in Web Application" href="webapp.html" /> 
+    <link rel="prev" title="Macaron for Web Applications" href="webapp.html" /> 
   </head>
   <body>
     <div class="related">
@@ -40,7 +40,7 @@
           <a href="module.html" title="Module contents"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="webapp.html" title="Macaron in Web Application"
+          <a href="webapp.html" title="Macaron for Web Applications"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>
@@ -71,7 +71,7 @@
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="webapp.html"
-                        title="previous chapter">Macaron in Web Application</a></p>
+                        title="previous chapter">Macaron for Web Applications</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="module.html"
                         title="next chapter">Module contents</a></p>
@@ -106,7 +106,7 @@
 <p>A model corresponds to the table of your database. It contains relationships and behaviors of the data.</p>
 <p>The basics:</p>
 <ul class="simple">
-<li>Each model is a Python class that subclasses <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">macaron.Model</span></tt></a>.</li>
+<li>Each model is a Python class that subclasses <a class="reference internal" href="class/model.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">macaron.Model</span></tt></a>.</li>
 <li>Each database field is represented into attribute of the model.</li>
 <li>Macaron defines attributes of the model from the table information automatically.</li>
 <li>Macaron&#8217;s model likes Django&#8217;s one.</li>
@@ -140,7 +140,7 @@
 </div>
 <div class="section" id="field-definition">
 <h3>Field definition<a class="headerlink" href="#field-definition" title="Permalink to this headline">¶</a></h3>
-<p>Most simple case, you do not define your <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a> classes except class definition. But you should define fields on your <a class="reference internal" href="#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a>s, the fields have validation and conversion mechanism. Field definition example is below.</p>
+<p>Most simple case, you do not define your <a class="reference internal" href="class/model.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a> classes except class definition. But you should define fields on your <a class="reference internal" href="class/model.html#macaron.Model" title="macaron.Model"><tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt></a>s, the fields have validation and conversion mechanism. Field definition example is below.</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
     <span class="n">joined</span> <span class="o">=</span> <span class="n">macaon</span><span class="o">.</span><span class="n">TimestampAtCreate</span><span class="p">()</span>
@@ -210,7 +210,7 @@
 <div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Team</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span> <span class="k">pass</span>
 
 <span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">macaron</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
-    <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="n">Team</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">,</span> <span class="n">fkey</span><span class="o">=</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s">&quot;id&quot;</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">)</span>
+    <span class="n">team</span> <span class="o">=</span> <span class="n">macaron</span><span class="o">.</span><span class="n">ManyToOne</span><span class="p">(</span><span class="n">Team</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;members&quot;</span><span class="p">,</span> <span class="n">fkey</span><span class="o">=</span><span class="s">&quot;team_id&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s">&quot;id&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>These Team and Member are defined as database tables in SQL.</p>
@@ -267,11 +267,11 @@ CREATE TABLE member (
 <li>In <tt class="docutils literal"><span class="pre">INSERT</span></tt> and <tt class="docutils literal"><span class="pre">UPDATE</span></tt><ol class="arabic">
 <li>The <a class="reference internal" href="class/field.html#macaron.Field.set" title="macaron.Field.set"><tt class="xref py py-meth docutils literal"><span class="pre">Field.set()</span></tt></a> is called at <tt class="docutils literal"><span class="pre">INSERT</span></tt> or <tt class="docutils literal"><span class="pre">UPDATE</span></tt>.</li>
 <li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.validate()</span></tt> is called for validation.</li>
-<li>The <a class="reference internal" href="#macaron.Model.before_create" title="macaron.Model.before_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_create()</span></tt></a> or <a class="reference internal" href="#macaron.Model.before_save" title="macaron.Model.before_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_save()</span></tt></a> is called (see next section).</li>
+<li>The <a class="reference internal" href="class/model.html#macaron.Model.before_create" title="macaron.Model.before_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_create()</span></tt></a> or <a class="reference internal" href="class/model.html#macaron.Model.before_save" title="macaron.Model.before_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_save()</span></tt></a> is called (see next section).</li>
 <li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.to_database()</span></tt> is called.</li>
 <li>SQL is conducted.</li>
 <li>The <tt class="xref py py-meth docutils literal"><span class="pre">Field.to_object()</span></tt> is called with new record from database.</li>
-<li>The <a class="reference internal" href="#macaron.Model.after_create" title="macaron.Model.after_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_create()</span></tt></a> or <a class="reference internal" href="#macaron.Model.after_save" title="macaron.Model.after_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_save()</span></tt></a> is called (see next section).</li>
+<li>The <a class="reference internal" href="class/model.html#macaron.Model.after_create" title="macaron.Model.after_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_create()</span></tt></a> or <a class="reference internal" href="class/model.html#macaron.Model.after_save" title="macaron.Model.after_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_save()</span></tt></a> is called (see next section).</li>
 </ol>
 </li>
 <li>In <tt class="docutils literal"><span class="pre">SELECT</span></tt><ol class="arabic">
@@ -283,31 +283,12 @@ CREATE TABLE member (
 </div>
 <div class="section" id="hooks-in-model">
 <h3>Hooks in model<a class="headerlink" href="#hooks-in-model" title="Permalink to this headline">¶</a></h3>
-<dl class="class">
-<dt id="macaron.Model">
-<em class="property">class </em><tt class="descclassname">macaron.</tt><tt class="descname">Model</tt><a class="headerlink" href="#macaron.Model" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="macaron.Model.before_create">
-<tt class="descname">before_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_create" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Model.before_save">
-<tt class="descname">before_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.before_save" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Model.after_create">
-<tt class="descname">after_create</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.after_create" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="macaron.Model.after_save">
-<tt class="descname">after_save</tt><big>(</big><big>)</big><a class="headerlink" href="#macaron.Model.after_save" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
+<ul class="simple">
+<li><a class="reference internal" href="class/model.html#macaron.Model.before_create" title="macaron.Model.before_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_create()</span></tt></a></li>
+<li><a class="reference internal" href="class/model.html#macaron.Model.before_save" title="macaron.Model.before_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.before_save()</span></tt></a></li>
+<li><a class="reference internal" href="class/model.html#macaron.Model.after_create" title="macaron.Model.after_create"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_create()</span></tt></a></li>
+<li><a class="reference internal" href="class/model.html#macaron.Model.after_save" title="macaron.Model.after_save"><tt class="xref py py-meth docutils literal"><span class="pre">Model.after_save()</span></tt></a></li>
+</ul>
 </div>
 </div>
 </div>
@@ -331,7 +312,7 @@ CREATE TABLE member (
           <a href="module.html" title="Module contents"
              >next</a> |</li>
         <li class="right" >
-          <a href="webapp.html" title="Macaron in Web Application"
+          <a href="webapp.html" title="Macaron for Web Applications"
              >previous</a> |</li>
         <li><a href="index.html">Macaron v0.3.0-dev documentation</a> &raquo;</li> 
       </ul>

@@ -2,13 +2,11 @@
  Model class reference 
 =======================
 
-.. warning::
-
-    The reference for APIs is under construction.
-
 .. module:: macaron
 
-.. class:: Model
+.. class:: Model(**kwargs)
+
+   The *kwargs* are parameters which are pairs of field names and values. Constructing a :class:`Model` object is not enough to create a new record. You must call :meth:`Model.save`. In general, you should use :meth:`Model.create` or :meth:`QuerySet.append`.
 
 
 Example
@@ -35,17 +33,6 @@ Example
 Class attributes
 ================
 
-``convert``
------------
-
-.. warning::
-
-    This has been not implemented yet.
-
-.. classmethod:: Module.convert(cursor, row)
-
-Called when converting the raw record to object, vice versa.
-
 ``_table_name``
 ---------------
 
@@ -64,6 +51,7 @@ Class properties
 
    :rtype: :class:`TableMetaInfo` instance
 
+   :class:`TableMetaInfo` is constructed when you access this property first.
 
 Class methods
 =============
@@ -73,10 +61,14 @@ Class methods
 
 .. classmethod:: Model.all()
 
+   Returns all records.
+
 ``create``
 ----------
 
 .. classmethod:: Model.create(**kwargs)
+
+   Creates a new object. This insert a new record to the database and returns the new :class:`Model` object.
 
 ``get``
 -------
@@ -88,6 +80,17 @@ Class methods
    :type parameters: list
    :rtype: Model instance
 
+   If you set WHERE clause into ``value`` with parameters, you must use place holders for security reasons. As this::
+   
+       member = Member.get("name=?", ["Azusa"])
+   
+   Or, you can specify primary key value::
+   
+       member = Member.get(1)
+   
+   The :meth:`Model.get` expects the single record. If multiple results are returned, :exc:`MultipleObjectsReturned` is raised.
+
+
 ``select``
 ----------
 
@@ -98,6 +101,7 @@ Class methods
    :type parameters: list
    :rtype: :class:`QuerySet` instance
 
+   This likes :meth:`Model.get`, but returns :class:`QuerySet`.
 
 Instance properties
 ===================
@@ -107,22 +111,48 @@ Instance properties
 
 .. attribute:: Model.pk
 
+   Shortcut of primary key.
+
 Instance methods
 ================
+
+``after_create``
+----------------
+
+.. method:: Model.after_create()
+
+``after_save``
+--------------
+
+.. method:: Model.after_save()
+
+``before_create``
+-----------------
+
+.. method:: Model.before_create()
+
+``before_save``
+---------------
+
+.. method:: Model.before_save()
 
 ``delete``
 ----------
 
 .. method:: Model.delete()
 
+   Deletes the object from the database.
 
 ``save``
 --------
 
 .. method:: Model.save()
 
-.. .. autoclass:: Model
-..    :members:
-..    :undoc-members:
+   Saves the object to the database.
 
+``validate``
+------------
 
+.. method:: Model.validate()
+
+   Validates the fields of the object. This method should not be called manually.
