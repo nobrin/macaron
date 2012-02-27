@@ -25,7 +25,7 @@ Example::
     >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __license__ = "MIT License"
 
 import sqlite3, re
@@ -36,6 +36,8 @@ from datetime import datetime
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 class ValidationError(Exception): pass      # TODO: fix behavior
+class MultipleObjectsReturned(Exception): pass
+class NotUniqueForeignKey(Exception): pass
 
 # --- Module global attributes
 _m = None       # Macaron object
@@ -390,7 +392,7 @@ class ManyToOne(property):
         cur = cls._meta._conn.cursor()
         cur = cur.execute(sql, [owner.pk])
         row = cur.fetchone()
-        if cur.fetchone(): raise ValueError()
+        if cur.fetchone(): raise NotUniqueForeignKey("Reference key '%s.%s' is not unique." % (reftbl, self.ref_key))
         return self.ref._factory(cur, row)
 
     def set_reverse(self, rev_cls):
@@ -485,7 +487,7 @@ class QuerySet(object):
             raise self.cls.DoesNotExist("%s object is not found." % cls.__name__)
         try: qs.next()
         except StopIteration: return obj
-        raise ValueError("Returns more rows.")
+        raise MultipleObjectsReturned("The 'get()' requires single result.")
 
     def select(self, where=None, values=[]):
         newset = self.__class__(self)
