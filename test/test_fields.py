@@ -8,30 +8,30 @@ import macaron
 DB_FILE = ":memory:"
 
 SQL_TEAM = """CREATE TABLE team (
-    id          INTEGER PRIMARY KEY,
+    id          INTEGER PRIMARY KEY NOT NULL,
     name        VARCHAR(40) NOT NULL,
     created     TIMESTAMP NOT NULL
 )"""
 
 SQL_MEMBER = """CREATE TABLE member (
-    id          INTEGER PRIMARY KEY,
+    id          INTEGER PRIMARY KEY NOT NULL,
     team_id     INTEGER REFERENCES team (id) NOT DEFERRABLE INITIALLY IMMEDIATE,
     first_name  TEXT,
     last_name   TEXT,
     age         INT DEFAULT 16,
     part        VARCHAR(10) NOT NULL,
-    joined      TIMESTAMP,
-    modified    TIMESTAMP
+    joined      TIMESTAMP NOT NULL,
+    modified    TIMESTAMP NOT NULL
 )"""
 
 class Team(macaron.Model):
-    created = macaron.TimestampAtCreate()
+    created = macaron.TimeStampAtCreate()
     def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, "members")
-    joined = macaron.TimestampAtCreate()
-    modified = macaron.TimestampAtSave()
+    joined = macaron.TimeStampAtCreate()
+    modified = macaron.TimeStampAtSave()
     age = macaron.IntegerField(max=18, min=15)
 
 class TestMacaron(unittest.TestCase):
@@ -47,9 +47,9 @@ class TestMacaron(unittest.TestCase):
         chks = (
             {"name":"id", "default":None, "null":True},
             {"name":"name", "default":None, "null":False, "max_length":40},
-            {"name":"created", "default":None, "null":False},
+            {"name":"created", "default":None, "null":True},
         )
-        clss = (macaron.IntegerField, macaron.CharField, macaron.TimestampAtCreate)
+        clss = (macaron.IntegerField, macaron.CharField, macaron.TimeStampAtCreate)
         for idx in range(0, len(Team._meta.fields)):
             fld = Team._meta.fields[idx]
             for n in chks[idx].keys():

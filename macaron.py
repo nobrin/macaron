@@ -25,7 +25,7 @@ Example::
     >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __license__ = "MIT License"
 
 import sqlite3, re
@@ -36,6 +36,8 @@ from datetime import datetime
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 class ValidationError(Exception): pass      # TODO: fix behavior
+class MultipleObjectsReturned(Exception): pass
+class NotUniqueForeignKey(Exception): pass
 
 # --- Module global attributes
 _m = None       # Macaron object
@@ -207,7 +209,7 @@ class FieldFactory(object):
             }
             use_field_class = Field
             for fldcls in TYPE_FIELDS:
-                for regex in fldcls.TYPENAMES:
+                for regex in fldcls.TYPE_NAMES:
                     if re.search(regex, row[2]):
                         use_field_class = fldcls
                         break
@@ -279,45 +281,54 @@ class Field(property):
 
     @staticmethod
     def default_convert(typename, value):
-        for regex in FloatField.TYPENAMES:
+        for regex in FloatField.TYPE_NAMES:
             if re.search(regex, typename, re.I): return float(value)
-        for regex in IntegerField.TYPENAMES:
+        for regex in IntegerField.TYPE_NAMES:
             if re.search(regex, typename, re.I): return int(value)
         return value
 
 class AtCreate(Field): pass
 class AtSave(Field): pass
 
-class TimestampField(Field):
-    TYPENAMES = (r"^TIMESTAMP$", r"^DATETIME$")
+class TimeStampField(Field):
+    TYPE_NAMES = (r"^TIMESTAMP$", r"^DATETIME$")
     def to_database(self, obj, value): return value.strftime("%Y-%m-%d %H:%M:%S")
     def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
 class DateField(Field):
-    TYPENAMES = (r"^DATE$",)
+    TYPE_NAMES = (r"^DATE$",)
     def to_database(self, obj, value): return value.strftime("%Y-%m-%d")
     def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d").date()
 
 class TimeField(Field):
-    TYPENAMES = (r"^TIME$",)
+    TYPE_NAMES = (r"^TIME$",)
     def to_database(self, obj, value): return value.strftime("%H-%M-%S")
     def to_object(self, row, value): return datetime.strptime(value, "%H-%M-%S").time()
 
-class TimestampAtCreate(TimestampField, AtCreate):
+class TimeStampAtCreate(TimeStampField, AtCreate):
+    def __init__(self, **kw):
+        kw["null"] = True
+        super(TimeStampAtCreate, self).__init__(**kw)
     def set(self, obj, value): return datetime.now()
 
 class DateAtCreate(DateField, AtCreate):
+    def __init__(self, **kw):
+        kw["null"] = True
+        super(DateAtCreate, self).__init__(**kw)
     def set(self, obj, value): return datetime.now().date()
 
 class TimeAtCreate(TimeField, AtCreate):
+    def __init__(self, **kw):
+        kw["null"] = True
+        super(TimeAtCreate, self).__init__(**kw)
     def set(self, obj, value): return datetime.now().time()
 
-class TimestampAtSave(TimestampAtCreate, AtSave): pass
+class TimeStampAtSave(TimeStampAtCreate, AtSave): pass
 class DateAtSave(DateAtCreate, AtSave): pass
 class TimeAtSave(TimeAtCreate, AtSave): pass
 
 class FloatField(Field):
-    TYPENAMES = ("REAL", "FLOA", "DOUB")
+    TYPE_NAMES = ("REAL", "FLOA", "DOUB")
     def __init__(self, max=None, min=None, **kw):
         super(FloatField, self).__init__(**kw)
         self.max, self.min = max, min
@@ -336,7 +347,7 @@ class FloatField(Field):
         return True
 
 class IntegerField(FloatField):
-    TYPENAMES = ("INT",)
+    TYPE_NAMES = ("INT",)
     def initialize_after_meta(self):
         if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
 
@@ -352,7 +363,7 @@ class IntegerField(FloatField):
         return True
 
 class CharField(Field):
-    TYPENAMES = ("CHAR", "CLOB", "TEXT")
+    TYPE_NAMES = ("CHAR", "CLOB", "TEXT")
     def __init__(self, max_length=None, min_length=None, **kw):
         super(CharField, self).__init__(**kw)
         self.max_length, self.min_length = max_length, min_length
@@ -390,7 +401,7 @@ class ManyToOne(property):
         cur = cls._meta._conn.cursor()
         cur = cur.execute(sql, [owner.pk])
         row = cur.fetchone()
-        if cur.fetchone(): raise ValueError()
+        if cur.fetchone(): raise NotUniqueForeignKey("Reference key '%s.%s' is not unique." % (reftbl, self.ref_key))
         return self.ref._factory(cur, row)
 
     def set_reverse(self, rev_cls):
@@ -485,7 +496,7 @@ class QuerySet(object):
             raise self.cls.DoesNotExist("%s object is not found." % cls.__name__)
         try: qs.next()
         except StopIteration: return obj
-        raise ValueError("Returns more rows.")
+        raise MultipleObjectsReturned("The 'get()' requires single result.")
 
     def select(self, where=None, values=[]):
         newset = self.__class__(self)
