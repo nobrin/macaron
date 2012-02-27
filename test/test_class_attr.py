@@ -26,7 +26,7 @@ SQL_MEMBER = """CREATE TABLE member (
 )"""
 
 class Team(macaron.Model):
-    created = macaron.TimeStampAtCreate()
+    created = macaron.TimestampAtCreate()
     start_date = macaron.DateAtCreate()
     def __str__(self):
         return "<Team '%s'>" % self.name
@@ -34,9 +34,9 @@ class Team(macaron.Model):
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, related_name="members")
     age = macaron.IntegerField(max=18, min=15)
-    created = macaron.TimeStampAtCreate()
+    created = macaron.TimestampAtCreate()
     joined = macaron.DateAtCreate()
-    modified = macaron.TimeStampAtSave()
+    modified = macaron.TimestampAtSave()
 
 class TestMacaron(unittest.TestCase):
     names = [
@@ -72,7 +72,7 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(prop.is_primary_key, True)
 
         prop = Team.__dict__["created"]
-        self.assert_(type(prop) is macaron.TimeStampAtCreate)
+        self.assert_(type(prop) is macaron.TimestampAtCreate)
         self.assertEqual(prop.null, True, "AtCreate accepted None value.")
         self.assertEqual(prop.default, None)
         self.assertEqual(prop.is_primary_key, False)
@@ -122,7 +122,7 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(prop.is_primary_key, False)
 
         prop = Member.__dict__["created"]
-        self.assertEqual(type(prop), macaron.TimeStampAtCreate)
+        self.assertEqual(type(prop), macaron.TimestampAtCreate)
         self.assertEqual(prop.null, True, "AtCreate accepts None value.")
         self.assertEqual(prop.default, None)
         self.assertEqual(prop.is_primary_key, False)
@@ -134,7 +134,7 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(prop.is_primary_key, False)
 
         prop = Member.__dict__["modified"]
-        self.assertEqual(type(prop), macaron.TimeStampAtSave)
+        self.assertEqual(type(prop), macaron.TimestampAtSave)
         self.assertEqual(prop.null, True, "AtSave accepts None value.")
         self.assertEqual(prop.default, None)
         self.assertEqual(prop.is_primary_key, False)

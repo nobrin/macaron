@@ -26,8 +26,8 @@ class StoreJSON(macaron.Field):
 
 class MyRecord(macaron.Model):
     value = StoreJSON()
-    created = macaron.TimeStampAtCreate()
-    modified = macaron.TimeStampAtSave()
+    created = macaron.TimestampAtCreate()
+    modified = macaron.TimestampAtSave()
     def __str__(self): return "<MyRecord '%s' is '%s'>" % (self.name, str(self.value))
 
 class TestConverter(unittest.TestCase):

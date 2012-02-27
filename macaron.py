@@ -290,7 +290,7 @@ class Field(property):
 class AtCreate(Field): pass
 class AtSave(Field): pass
 
-class TimeStampField(Field):
+class TimestampField(Field):
     TYPE_NAMES = (r"^TIMESTAMP$", r"^DATETIME$")
     def to_database(self, obj, value): return value.strftime("%Y-%m-%d %H:%M:%S")
     def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
@@ -305,10 +305,10 @@ class TimeField(Field):
     def to_database(self, obj, value): return value.strftime("%H-%M-%S")
     def to_object(self, row, value): return datetime.strptime(value, "%H-%M-%S").time()
 
-class TimeStampAtCreate(TimeStampField, AtCreate):
+class TimestampAtCreate(TimestampField, AtCreate):
     def __init__(self, **kw):
         kw["null"] = True
-        super(TimeStampAtCreate, self).__init__(**kw)
+        super(TimestampAtCreate, self).__init__(**kw)
     def set(self, obj, value): return datetime.now()
 
 class DateAtCreate(DateField, AtCreate):
@@ -323,7 +323,7 @@ class TimeAtCreate(TimeField, AtCreate):
         super(TimeAtCreate, self).__init__(**kw)
     def set(self, obj, value): return datetime.now().time()
 
-class TimeStampAtSave(TimeStampAtCreate, AtSave): pass
+class TimestampAtSave(TimestampAtCreate, AtSave): pass
 class DateAtSave(DateAtCreate, AtSave): pass
 class TimeAtSave(TimeAtCreate, AtSave): pass
 

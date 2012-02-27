@@ -25,13 +25,13 @@ SQL_MEMBER = """CREATE TABLE member (
 )"""
 
 class Team(macaron.Model):
-    created = macaron.TimeStampAtCreate()
+    created = macaron.TimestampAtCreate()
     def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, "members")
-    joined = macaron.TimeStampAtCreate()
-    modified = macaron.TimeStampAtSave()
+    joined = macaron.TimestampAtCreate()
+    modified = macaron.TimestampAtSave()
     age = macaron.IntegerField(max=18, min=15)
 
 class TestMacaron(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestMacaron(unittest.TestCase):
             {"name":"name", "default":None, "null":False, "max_length":40},
             {"name":"created", "default":None, "null":True},
         )
-        clss = (macaron.IntegerField, macaron.CharField, macaron.TimeStampAtCreate)
+        clss = (macaron.IntegerField, macaron.CharField, macaron.TimestampAtCreate)
         for idx in range(0, len(Team._meta.fields)):
             fld = Team._meta.fields[idx]
             for n in chks[idx].keys():
