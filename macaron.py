@@ -334,9 +334,11 @@ class FloatField(Field):
         if value == None: return True
         try: self.cast(value)
         except (ValueError, TypeError):
-            raise ValidationError("Value must be a number, not '%s'." % type(value))
-        if self.max != None and value > self.max: raise ValidationError("Max value is exceeded. %d" % value)
-        if self.min != None and value < self.min: raise ValidationError("Min value is underrun. %d" % value)
+            raise ValidationError("Field '%s': Value must be a number, not '%s' [%s]." % (self.name, type(value).__name__, value))
+        if self.max != None and value > self.max:
+            raise ValidationError("Field '%s': Max value is exceeded. [%d]" % (self.name, value))
+        if self.min != None and value < self.min:
+            raise ValidationError("Field '%s': Min value is underrun. [%d]" % (self.name, value))
         return True
 
 class IntegerField(FloatField):
@@ -353,7 +355,7 @@ class IntegerField(FloatField):
         if value == None: return True
         try: self.cast(value)
         except (ValueError, TypeError):
-            raise ValidationError("Value must be an integer, not '%s'." % type(value))
+            raise ValidationError("Field '%s': Value must be an integer, not '%s' [%s]." % (type(value).__name__, value))
         return True
 
 class CharField(Field):
@@ -370,8 +372,10 @@ class CharField(Field):
     def validate(self, obj, value):
         super(CharField, self).validate(obj, value)
         if value == None: return True
-        if self.max_length and len(value) > self.max_length: raise ValidationError("Text is too long.")
-        if self.min_length and len(value) < self.min_length: raise ValidationError("Text is too short.")
+        if self.max_length and len(value) > self.max_length:
+            raise ValidationError("Field '%s': Text is too long, max_length=%d [%s]." % (self.name, self.max_length, value))
+        if self.min_length and len(value) < self.min_length:
+            raise ValidationError("Field '%s': Text is too short, min_length=%d [%s]." % (self.name, self.min_length, value))
         return True
 
 # --- Relationships
