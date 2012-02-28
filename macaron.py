@@ -25,7 +25,7 @@ Example::
     >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.3.1"
+__version__ = "0.3.2-dev"
 __license__ = "MIT License"
 
 import sqlite3, re
@@ -56,8 +56,8 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
 
     Initializes macaron.
     This sets Macaron instance to module global variable *_m* (don't access directly).
-    If *lazy* is ``True``, :class:`LazyConnection` object is used for connection, which
-    will connect to the DB when using. If *autocommit* is ``True``, this will commits
+    If ``lazy`` is ``True``, :class:`LazyConnection` object is used for connection, which
+    will connect to the DB when using. If ``autocommit`` is ``True``, this will commits
     when this object will be unloaded.
     """
     globals()["_m"] = Macaron()
@@ -114,7 +114,7 @@ def _create_wrapper(logger):
     class ConnectionWrapper(sqlite3.Connection):
         def __init__(self, *args, **kw):
             super(ConnectionWrapper, self).__init__(*args, **kw)
-            self.execute("PRAGMA foreign_keys = ON")    # fkey support ON (>=SQLite-3.6.19)
+            self.execute("PRAGMA foreign_keys = ON")    # fkey support ON (SQLite>=3.6.19)
 
         def cursor(self):
             self.logger = logger
@@ -204,19 +204,17 @@ class FieldFactory(object):
     def create(row, cls):
         rec = dict(zip(["cid", "name", "type", "not_null", "default", "is_primary_key"], row))
         cdict = cls.__dict__
+        if cdict.has_key(rec["name"]) and not isinstance(cdict[rec["name"]], Field):
+            raise TypeError("Fields must be Field objects.")
         if cdict.has_key(rec["name"]) and cdict[rec["name"]].is_user_defined:
             fld = cls.__dict__[rec["name"]]
         else:
-            fldkw = {
-                "null"          : not rec["not_null"],
-                "is_primary_key": rec["is_primary_key"],
-            }
+            fldkw = {"null": not rec["not_null"], "is_primary_key": rec["is_primary_key"]}
             use_field_class = Field
             for fldcls in TYPE_FIELDS:
-                for regex in fldcls.TYPE_NAMES:
-                    if re.search(regex, row[2]):
-                        use_field_class = fldcls
-                        break
+                if filter(lambda s:re.search(s, row[2]), fldcls.TYPE_NAMES):
+                    use_field_class = fldcls
+                    break
             fld = use_field_class(**fldkw)
         fld.cid, fld.name, fld.type = row[0:3]
         fld.initialize_after_meta()
@@ -246,13 +244,10 @@ class TableMetaInfo(object):
     table information with ``Bookmark._meta``.
     """
     def __init__(self, conn, table_name, cls):
-        self._conn = conn   # Connection for the table
-        #: Table fields collection
-        self.fields = FieldInfoCollection()
-        #: Primary key :class:`Field`
-        self.primary_key = None
-        #: Table name
-        self.table_name = table_name
+        self._conn = conn                   #: Connection for the table
+        self.fields = FieldInfoCollection() #: Table fields collection
+        self.primary_key = None             #: Primary key :class:`Field`
+        self.table_name = table_name        #: Table name
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
         for row in rows:
@@ -264,24 +259,25 @@ class TableMetaInfo(object):
 class Field(property):
     is_user_defined = False
     def __init__(self, null=False, default=None, is_primary_key=False):
-        self.null = null
+        self.null = bool(null)
         self.default = default
         self.is_primary_key = bool(is_primary_key)
+
     def cast(self, value): return value
     def set(self, obj, value): return value
     def to_database(self, obj, value): return value
     def to_object(self, row, value): return value
+    def initialize_after_meta(self): pass
+
     def validate(self, obj, value):
         if not self.null and value == None:
             raise ValidationError("Field '%s' does not accept None value." % self.name)
         return True
 
-    def initialize_after_meta(self): pass
-
     def __get__(self, owner_obj, cls): return owner_obj._data.get(self.name, None)
     def __set__(self, owner_obj, value):
         self.validate(self, value)
-        owner_obj._data[self.name] = value
+        owner_obj._data[self.name] = self.cast(value)
 
 class AtCreate(Field): pass
 class AtSave(Field): pass
@@ -337,7 +333,8 @@ class FloatField(Field):
         super(FloatField, self).validate(obj, value)
         if value == None: return True
         try: self.cast(value)
-        except (ValueError, TypeError): raise ValidationError("Value is not a number.")
+        except (ValueError, TypeError):
+            raise ValidationError("Value must be a number, not '%s'." % type(value))
         if self.max != None and value > self.max: raise ValidationError("Max value is exceeded. %d" % value)
         if self.min != None and value < self.min: raise ValidationError("Min value is underrun. %d" % value)
         return True
@@ -355,7 +352,8 @@ class IntegerField(FloatField):
         super(IntegerField, self).validate(obj, value)
         if value == None: return True
         try: self.cast(value)
-        except (ValueError, TypeError): raise ValidationError("Value is not an integer.")
+        except (ValueError, TypeError):
+            raise ValidationError("Value must be an integer, not '%s'." % type(value))
         return True
 
 class CharField(Field):
@@ -699,21 +697,18 @@ class Avg(AggregateFunction):   name = "AVG"
 class Max(AggregateFunction):   name = "MAX"
 class Min(AggregateFunction):   name = "MIN"
 class Sum(AggregateFunction):   name = "SUM"
+class Total(AggregateFunction): name = "TOTAL"
 class Count(AggregateFunction): name = "COUNT"
 
 # --- Plugin for Bottle web framework
 class MacaronPlugin(object):
-    """Macaron plugin for Bottle web framework
-    This plugin handled Macaron.
-    """
+    """Bottle plugin for Macaron"""
     name = "macaron"
     api = 2
 
     def __init__(self, dbfile=":memory:", autocommit=True):
         self.dbfile = dbfile
         self.autocommit = autocommit
-
-    def setup(self, app): pass
 
     def apply(self, callback, ctx):
         conf = ctx.config.get("macaron") or {}
