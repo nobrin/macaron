@@ -25,7 +25,7 @@ Example::
     >>> azu = Member.get("part=?", ["Gt2"])
     >>> print azu
     <Member 'Azusa : Gt2'>
-    >>> macaron.db_close()
+    >>> macaron.cleanup()
 
 
 Features
@@ -33,7 +33,7 @@ Features
 
 Macaron aims to make the use of database easy for small applications.
 
-* A object-relational mapper (ORM) for SQLite.
+* An object-relational mapper (ORM) for SQLite.
 * There are no dependencies except Python Standard Library.
 * Auto-definition of model fields from database tables.
 * Many-To-One relationships are supported.

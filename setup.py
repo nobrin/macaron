@@ -13,9 +13,10 @@ import macaron
 setup(
     name             = "macaron",
     version          = macaron.__version__,
-    description      = "A simple O/R mapper for SQLite3",
+    description      = "Simple object-relational mapper for SQLite3, includes plugin for Bottle web framework",
     long_description = macaron.__doc__,
     author           = macaron.__author__,
+    author_email     = "nobrin@biokids.org",
     url              = "http://nobrin.github.com/macaron",
     py_modules       = ["macaron"],
     scripts          = ["macaron.py"],

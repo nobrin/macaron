@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-*Macaron* is a small and simple object-relational mapper (ORM) for SQLite and
-Python. It is distributed as a single file module which has no dependencies
-other than the Python Standard Library.
+Macaron is a small object-relational mapper (ORM) for SQLite on Python.
+It is distributed as a single file module which has no dependencies other
+than the Python Standard Library.
 
-*Macaron* provides easy access methods to SQLite database. And it supports
-Bottle web framework through plugin mechanism.
+Macaron provides easy access way to SQLite database as standalone. And also
+it can work in Bottle web framework through the plugin mechanism.
 
 Example::
 
