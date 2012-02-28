@@ -50,7 +50,7 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     :param lazy: Uses :class:`LazyConnection`.
     :param autocommit: Commits automatically when closing database.
     :param logger: Uses for logging SQL execution.
-    :param history: Set max count of SQL execution history (0 is unlimited, -1 is disabled).
+    :param history: Sets max count of SQL execution history (0 is unlimited, -1 is disabled).
                     Default: disabled
     :type logger: :class:`logging.Logger`
 
@@ -112,6 +112,10 @@ class Macaron(object):
 def _create_wrapper(logger):
     """Returns ConnectionWrapper class"""
     class ConnectionWrapper(sqlite3.Connection):
+        def __init__(self, *args, **kw):
+            super(ConnectionWrapper, self).__init__(*args, **kw)
+            self.execute("PRAGMA foreign_keys = ON")    # fkey support ON (>=SQLite-3.6.19)
+
         def cursor(self):
             self.logger = logger
             return super(ConnectionWrapper, self).cursor(CursorWrapper)

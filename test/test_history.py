@@ -43,10 +43,8 @@ class TestHistoryLogger(unittest.TestCase):
 
     def testMacaronOption_index(self):
         macaron.macaronage(DB_FILE, history=10)
-        chk = False
-        try: macaron.history[0]
-        except IndexError: chk = True
-        self.assert_(chk, "Index Error is not raised.")
+        def _index_error(): macaron.history[1]
+        self.assertRaises(IndexError, _index_error)
         macaron.cleanup()
 
 if __name__ == "__main__":
