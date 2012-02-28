@@ -283,14 +283,6 @@ class Field(property):
         self.validate(self, value)
         owner_obj._data[self.name] = value
 
-    @staticmethod
-    def default_convert(typename, value):
-        for regex in FloatField.TYPE_NAMES:
-            if re.search(regex, typename, re.I): return float(value)
-        for regex in IntegerField.TYPE_NAMES:
-            if re.search(regex, typename, re.I): return int(value)
-        return value
-
 class AtCreate(Field): pass
 class AtSave(Field): pass
 
