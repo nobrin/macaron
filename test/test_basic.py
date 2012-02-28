@@ -3,18 +3,16 @@
 """
 Testing for basic usage.
 """
-import sys, os
-sys.path.insert(0, "../")
 import unittest
 import macaron
 
 DB_FILE = ":memory:"
 
-sql_t_team = """CREATE TABLE IF NOT EXISTS team (
+SQL_TEAM = """CREATE TABLE IF NOT EXISTS team (
     id          INTEGER PRIMARY KEY,
     name        TEXT
 )"""
-sql_t_member = """CREATE TABLE IF NOT EXISTS member (
+SQL_MEMBER = """CREATE TABLE IF NOT EXISTS member (
     id          INTEGER PRIMARY KEY,
     team_id     INTEGER REFERENCES team (id),
     first_name  TEXT,
@@ -24,17 +22,11 @@ sql_t_member = """CREATE TABLE IF NOT EXISTS member (
 )"""
 
 class Team(macaron.Model):
-#    _table_name = "team"   # if not set, default is className.lower()
     def __str__(self):
         return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
-#    _table_name = "member"
-#    team = macaron.ManyToOne(Team, "members", "team_id", "id")
-#    team = macaron.ManyToOne(Team, "team_id", related_name="members")
-#    team = macaron.ManyToOne(Team, related_name="members")
-    team = macaron.ManyToOne(Team, "members")
-    age = macaron.IntegerField(null=True)
+    team = macaron.ManyToOne(Team, related_name="members")
 
     def __str__(self):
         return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
@@ -48,9 +40,9 @@ class TestMacaron(unittest.TestCase):
     ]
 
     def setUp(self):
-        macaron.macaronage(dbfile=DB_FILE, lazy=True)
-        macaron.execute(sql_t_team)
-        macaron.execute(sql_t_member)
+        macaron.macaronage(DB_FILE, lazy=True)
+        macaron.execute(SQL_TEAM)
+        macaron.execute(SQL_MEMBER)
 
     def tearDown(self):
         macaron.bake()
@@ -151,6 +143,7 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(qs.sql, "SELECT DISTINCT * FROM member")
 
 if __name__ == "__main__":
+    import os
     if os.path.isfile(DB_FILE): os.unlink(DB_FILE)
     unittest.main()
-    macaron.db_close()
+    macaron.cleanup()

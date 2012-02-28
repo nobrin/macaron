@@ -3,16 +3,13 @@
 """
 Test for HistoryLogger.
 """
-import sys, os
-sys.path.insert(0, "../")
 import unittest
 import macaron
 import sqlite3
 import logging
 
 DB_FILE = ":memory:"
-
-sql_t_test = """CREATE TABLE IF NOT EXISTS t_test (
+SQL_TEST = """CREATE TABLE IF NOT EXISTS t_test (
     id          INTEGER PRIMARY KEY,
     name        TEXT,
     value       TEXT
@@ -29,16 +26,20 @@ class TestHistoryLogger(unittest.TestCase):
         logger.addHandler(sql_logger)
 
         conn = sqlite3.connect(DB_FILE, factory=macaron._create_wrapper(logger))
-        conn.execute(sql_t_test)
-        self.assertEqual(sql_logger[0], "%s\nparams: []" % sql_t_test)
+        conn.execute(SQL_TEST)
+        self.assertEqual(sql_logger[0], "%s\nparams: []" % SQL_TEST)
         conn.close()
+
+    def testLogger_content(self):
+        macaron.macaronage(DB_FILE, history=10)
+        macaron.execute(SQL_TEST)
+        self.assertEqual(macaron.history[0], "%s\nparams: []" % SQL_TEST)
+        macaron.cleanup()
 
     def testMacaronOption_disabled(self):
         macaron.macaronage(DB_FILE)
-        chk = False
-        try: macaron.history[0]
-        except RuntimeError: chk = True
-        self.assert_(chk, "'SQL history is disabled' error has not raised")
+        def _history_is_disabled(): macaron.history[0]
+        self.assertRaises(RuntimeError, _history_is_disabled)
         macaron.cleanup()
 
     def testMacaronOption_index(self):

@@ -66,6 +66,13 @@ Reference Guide
    class/queryset
    class/macaron
 
+Release Notes
+=============
+
+.. toctree::
+   :maxdepth: 2
+   
+   changes
 
 Indices and tables
 ==================

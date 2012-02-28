@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
+"""
+Test for class attributes.
+"""
 import unittest
 import macaron
 
@@ -28,8 +30,7 @@ SQL_MEMBER = """CREATE TABLE member (
 class Team(macaron.Model):
     created = macaron.TimestampAtCreate()
     start_date = macaron.DateAtCreate()
-    def __str__(self):
-        return "<Team '%s'>" % self.name
+    def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, related_name="members")
@@ -140,6 +141,7 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(prop.is_primary_key, False)
 
 if __name__ == "__main__":
+    import os
     if os.path.isfile(DB_FILE): os.unlink(DB_FILE)
     unittest.main()
-    macaron.db_close()
+    macaron.cleanup()
