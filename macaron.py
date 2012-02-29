@@ -38,10 +38,13 @@ class ObjectDoesNotExist(Exception): pass
 class ValidationError(Exception): pass      # TODO: fix behavior
 class MultipleObjectsReturned(Exception): pass
 class NotUniqueForeignKey(Exception): pass
+class DataTableDoesNotExist(Exception): pass
+class DataTableAlreadyExists(Exception): pass
 
 # --- Module global attributes
-_m = None       # Macaron object
-history = None  #: Returns history of SQL execution. You can get history like a list (index:0 is latest).
+_m = None               # Macaron object
+_pre_field_order = []   # Created order of Model field object
+history = None          #: Returns history of SQL execution. You can get history like a list (index:0 is latest).
 
 # --- Module methods
 def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1):
@@ -82,6 +85,51 @@ def bake():     _m.connection["default"].commit()   # Commits
 def rollback(): _m.connection["default"].rollback() # Rollback
 def cleanup():  _m = None   # Closes database and tidies up Macaron
 
+def create_table(cls):
+    """Create table from Model class"""
+    cdic = cls.__dict__
+    field_order = {}
+    has_primary_key = False
+
+    # Check if table exists.
+    try:
+        cls._meta
+        raise cls.TableAlreadyExists("Table '%s' already exists in database." % cls._meta.table_name)
+    except cls.TableDoesNotExist: pass
+
+    # Process Field and ManyToOne objects
+    for k, fld in filter(lambda (k, v): isinstance(v, Field), cdic.items()):
+        if isinstance(fld, ManyToOne):
+            meta = None
+            while not meta:
+                try: meta = fld.ref._meta; break
+                except fld.ref.TableDoesNotExist: create_table(fld.ref)
+            # Generate REFERENCES clause
+            refkey = fld.ref_key or meta.primary_key.name
+            sql  = "REFERENCES %s(%s)" % (meta.table_name, refkey)
+            if fld.on_delete: sql += " ON DELETE %s" % fld.on_delete
+            if fld.on_update: sql += " ON UPDATE %s" % fld.on_update
+            # Generate Field for foreign key
+            fkey = meta.primary_key.__class__(sql_append=sql, **fld._kw)
+            fkey.name = fld.fkey or "%s_id" % meta.table_name
+            field_order[_pre_field_order.index(fld)] = fkey
+        else:
+            fld.name = k
+            field_order[_pre_field_order.index(fld)] = fld
+            if fld.is_primary_key: has_primary_key = True
+
+    # Create primary key field if not exists
+    field_clauses = []
+    if not has_primary_key:
+        fld = IntegerField(primary_key=True)
+        fld.name = "id"
+        field_clauses.append(fld.field_clause())
+
+    # Generate CREATE TABLE clause and execute
+    for k in sorted(field_order.keys()): field_clauses.append(field_order[k].field_clause())
+    sql  = "CREATE TABLE %s (\n  %s\n)" % (cdic["_meta"].table_name, ",\n  ".join(field_clauses))
+    execute(sql)
+
 # --- Classes
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
@@ -102,6 +150,8 @@ class Macaron(object):
         for k in self.connection.keys():
             if self.autocommit: self.connection[k].commit()
             self.connection[k].close()
+
+        _field_order = []
 
     def get_connection(self, meta_obj):
         """Returns Connection and adds reference to the object which uses it."""
@@ -209,7 +259,7 @@ class FieldFactory(object):
         if cdict.has_key(rec["name"]) and cdict[rec["name"]].is_user_defined:
             fld = cls.__dict__[rec["name"]]
         else:
-            fldkw = {"null": not rec["not_null"], "is_primary_key": rec["is_primary_key"]}
+            fldkw = {"null": not rec["not_null"], "primary_key": rec["is_primary_key"]}
             use_field_class = Field
             for fldcls in TYPE_FIELDS:
                 if filter(lambda s:re.search(s, row[2]), fldcls.TYPE_NAMES):
@@ -250,6 +300,7 @@ class TableMetaInfo(object):
         self.table_name = table_name        #: Table name
         cur = conn.cursor()
         rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
+        if not len(rows): raise cls.TableDoesNotExist()
         for row in rows:
             fld = FieldFactory.create(row, cls)
             self.fields.append(fld)
@@ -257,11 +308,16 @@ class TableMetaInfo(object):
 
 # --- Field converting and validation
 class Field(property):
+    SQL_TYPE = "UNKNOWN"
     is_user_defined = False
-    def __init__(self, null=False, default=None, is_primary_key=False):
-        self.null = bool(null)
+    def __init__(self, null=False, default=None, primary_key=False, unique=False, sql_append=""):
+        self.name = None
+        self.null = null
         self.default = default
-        self.is_primary_key = bool(is_primary_key)
+        self.is_primary_key = primary_key
+        self.unique = unique
+        self.sql_append = sql_append
+        _pre_field_order.append(self)
 
     def cast(self, value): return value
     def set(self, obj, value): return value
@@ -278,6 +334,14 @@ class Field(property):
     def __set__(self, owner_obj, value):
         self.validate(self, value)
         owner_obj._data[self.name] = self.cast(value)
+
+    def field_clause(self):
+        a = [self.name, self.SQL_TYPE]
+        if self.is_primary_key: a.append("PRIMARY KEY")
+        if not self.null: a.append("NOT NULL")
+        if self.unique: a.append("UNIQUE")
+        if self.sql_append: a.append(self.sql_append)
+        return " ".join(a)
 
 class AtCreate(Field): pass
 class AtSave(Field): pass
@@ -343,6 +407,8 @@ class FloatField(Field):
 
 class IntegerField(FloatField):
     TYPE_NAMES = ("INT",)
+    SQL_TYPE = "INTEGER"
+
     def initialize_after_meta(self):
         if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
 
@@ -364,6 +430,11 @@ class CharField(Field):
         super(CharField, self).__init__(**kw)
         self.max_length, self.min_length = max_length, min_length
 
+    def _sql_type(self):
+        if self.max_length: return "VARCHAR(%d)" % self.max_length
+        return "TEXT"
+    SQL_TYPE = property(_sql_type)
+
     def initialize_after_meta(self):
         m = re.search(r"CHAR\s*\((\d+)\)", self.type, re.I)
         if m and (not self.max_length or self.max_length > int(m.group(1))):
@@ -379,14 +450,19 @@ class CharField(Field):
         return True
 
 # --- Relationships
-class ManyToOne(property):
+class ManyToOne(Field):
     """Many to one relation ship definition class"""
-    def __init__(self, ref, related_name=None, fkey=None, ref_key=None):
+    def __init__(self, ref, related_name=None, fkey=None, ref_key=None, on_delete=None, on_update=None, **kw):
         # in this state, db has been not connected!
+        super(ManyToOne, self).__init__(**kw)
         self.ref = ref                      #: reference table ('one' side)
         self.fkey = fkey                    #: foreign key name ('many' side)
         self.ref_key = ref_key              #: reference key ('one' side)
         self.related_name = related_name    #: accessor name for one to many relation
+        self.on_delete = on_delete
+        self.on_update = on_update
+        self._kw = kw.copy()
+        _pre_field_order.append(self)
 
     def __get__(self, owner, cls):
         reftbl = self.ref._meta.table_name
@@ -401,6 +477,8 @@ class ManyToOne(property):
         row = cur.fetchone()
         if cur.fetchone(): raise NotUniqueForeignKey("Reference key '%s.%s' is not unique." % (reftbl, self.ref_key))
         return self.ref._factory(cur, row)
+
+    def __set__(self, owner, value): raise AttributeError("can't set attribute")
 
     def set_reverse(self, rev_cls):
         """Sets up one to many definition method.
@@ -566,6 +644,8 @@ class ModelMeta(type):
     """Meta class for Model class"""
     def __new__(cls, name, bases, dict):
         dict["DoesNotExist"] = type("DoesNotExist", (ObjectDoesNotExist,), {})
+        dict["TableDoesNotExist"] = type("TableDoesNotExist", (DataTableDoesNotExist,), {})
+        dict["TableAlreadyExists"] = type("TableAlreadyExists", (DataTableAlreadyExists,), {})
         dict["_meta"] = TableMetaClassProperty()
         dict["_meta"].table_name = dict.pop("_table_name", name.lower())
         return type.__new__(cls, name, bases, dict)
