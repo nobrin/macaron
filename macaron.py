@@ -85,11 +85,9 @@ def bake():     _m.connection["default"].commit()   # Commits
 def rollback(): _m.connection["default"].rollback() # Rollback
 def cleanup():  _m = None   # Closes database and tidies up Macaron
 
-def create_table(cls):
+def create_table(cls, cascade=False):
     """Create table from Model class"""
-    cdic = cls.__dict__
-    field_order = {}
-    has_primary_key = False
+    if not issubclass(cls, Model): raise TypeError("The first arg must be Model class, not '%s'." % cls.__name__)
 
     # Check if table exists.
     try:
@@ -98,25 +96,30 @@ def create_table(cls):
     except cls.TableDoesNotExist: pass
 
     # Process Field and ManyToOne objects
+    cdic = cls.__dict__ # for direct access to property objects
+    field_order = {}
+    has_primary_key = False
     for k, fld in filter(lambda (k, v): isinstance(v, Field), cdic.items()):
         if isinstance(fld, ManyToOne):
             meta = None
+            # The reference table exists or not.
             while not meta:
                 try: meta = fld.ref._meta; break
-                except fld.ref.TableDoesNotExist: create_table(fld.ref)
+                except fld.ref.TableDoesNotExist, e:
+                    if not cascade: raise e
+                    else: create_table(fld.ref)
             # Generate REFERENCES clause
             refkey = fld.ref_key or meta.primary_key.name
             sql  = "REFERENCES %s(%s)" % (meta.table_name, refkey)
             if fld.on_delete: sql += " ON DELETE %s" % fld.on_delete
             if fld.on_update: sql += " ON UPDATE %s" % fld.on_update
-            # Generate Field for foreign key
-            fkey = meta.primary_key.__class__(sql_append=sql, **fld._kw)
-            fkey.name = fld.fkey or "%s_id" % meta.table_name
-            field_order[_pre_field_order.index(fld)] = fkey
+            fld.name = fld.fkey or "%s_id" % meta.table_name
+            fld.type = meta.fields[refkey].type
+            fld.extra_sql = sql
         else:
             fld.name = k
-            field_order[_pre_field_order.index(fld)] = fld
             if fld.is_primary_key: has_primary_key = True
+        field_order[_pre_field_order.index(fld)] = fld
 
     # Create primary key field if not exists
     field_clauses = []
@@ -310,13 +313,11 @@ class TableMetaInfo(object):
 class Field(property):
     SQL_TYPE = "UNKNOWN"
     is_user_defined = False
-    def __init__(self, null=False, default=None, primary_key=False, unique=False, sql_append=""):
-        self.name = None
-        self.null = null
-        self.default = default
+    def __init__(self, null=False, default=None, primary_key=False, unique=False, extra_sql=""):
+        self.name, self.type = None, self.SQL_TYPE
+        self.null, self.default, self.unique = null, default, unique
         self.is_primary_key = primary_key
-        self.unique = unique
-        self.sql_append = sql_append
+        self.extra_sql = extra_sql
         _pre_field_order.append(self)
 
     def cast(self, value): return value
@@ -336,11 +337,11 @@ class Field(property):
         owner_obj._data[self.name] = self.cast(value)
 
     def field_clause(self):
-        a = [self.name, self.SQL_TYPE]
+        a = [self.name, self.type]
         if self.is_primary_key: a.append("PRIMARY KEY")
         if not self.null: a.append("NOT NULL")
         if self.unique: a.append("UNIQUE")
-        if self.sql_append: a.append(self.sql_append)
+        if self.extra_sql: a.append(self.extra_sql)
         return " ".join(a)
 
 class AtCreate(Field): pass
@@ -348,16 +349,19 @@ class AtSave(Field): pass
 
 class TimestampField(Field):
     TYPE_NAMES = (r"^TIMESTAMP$", r"^DATETIME$")
+    SQL_TYPE = "TIMESTAMP"
     def to_database(self, obj, value): return value.strftime("%Y-%m-%d %H:%M:%S")
     def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
 class DateField(Field):
     TYPE_NAMES = (r"^DATE$",)
+    SQL_TYPE = "DATE"
     def to_database(self, obj, value): return value.strftime("%Y-%m-%d")
     def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d").date()
 
 class TimeField(Field):
     TYPE_NAMES = (r"^TIME$",)
+    SQL_TYPE = "TIME"
     def to_database(self, obj, value): return value.strftime("%H-%M-%S")
     def to_object(self, row, value): return datetime.strptime(value, "%H-%M-%S").time()
 
@@ -385,9 +389,11 @@ class TimeAtSave(TimeAtCreate, AtSave): pass
 
 class FloatField(Field):
     TYPE_NAMES = ("REAL", "FLOA", "DOUB")
+    SQL_TYPE = "FLOAT"
     def __init__(self, max=None, min=None, **kw):
         super(FloatField, self).__init__(**kw)
         self.max, self.min = max, min
+        self.type = self.SQL_TYPE
 
     def cast(self, value):
         if value == None: return None
@@ -426,14 +432,20 @@ class IntegerField(FloatField):
 
 class CharField(Field):
     TYPE_NAMES = ("CHAR", "CLOB", "TEXT")
-    def __init__(self, max_length=None, min_length=None, **kw):
+    def __init__(self, max_length=None, min_length=None, length=None, **kw):
         super(CharField, self).__init__(**kw)
         self.max_length, self.min_length = max_length, min_length
+        self.length = length
+        if self.length and not self.max_length: self.max_length = self.length
+        self._type = None
 
-    def _sql_type(self):
+    def _get_sql_type(self):
+        if self._type: return self._type
         if self.max_length: return "VARCHAR(%d)" % self.max_length
+        if self.length: return "CHAR(%d)" % self.length
         return "TEXT"
-    SQL_TYPE = property(_sql_type)
+    def _set_sql_type(self, value): self._type = value
+    type = property(_get_sql_type, _set_sql_type)
 
     def initialize_after_meta(self):
         m = re.search(r"CHAR\s*\((\d+)\)", self.type, re.I)
@@ -461,14 +473,17 @@ class ManyToOne(Field):
         self.related_name = related_name    #: accessor name for one to many relation
         self.on_delete = on_delete
         self.on_update = on_update
-        self._kw = kw.copy()
         _pre_field_order.append(self)
 
+    def _set_keys(self):
+        self.name = self.fkey = self.fkey or "%s_id" % self.ref._meta.table_name
+        self.ref_key = self.ref_key or self.ref._meta.primary_key.name
+        self.type = self.ref._meta.fields[self.ref_key].type
+
     def __get__(self, owner, cls):
+        self._set_keys()
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
-        self.fkey = self.fkey or "%s_id" % self.ref._meta.table_name
-        self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
             % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
                clstbl, cls._meta.primary_key.name)
@@ -478,7 +493,11 @@ class ManyToOne(Field):
         if cur.fetchone(): raise NotUniqueForeignKey("Reference key '%s.%s' is not unique." % (reftbl, self.ref_key))
         return self.ref._factory(cur, row)
 
-    def __set__(self, owner, value): raise AttributeError("can't set attribute")
+    def __set__(self, owner, value):
+        if not isinstance(value, self.ref):
+            raise TypeError("This is related to '%s', not '%s'." % (self.ref.__name__, value.__class__.__name__))
+        self._set_keys()
+        setattr(owner, self.fkey, getattr(value, self.ref_key))
 
     def set_reverse(self, rev_cls):
         """Sets up one to many definition method.
