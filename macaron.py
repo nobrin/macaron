@@ -36,6 +36,7 @@ from datetime import datetime
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 class ValidationError(Exception): pass      # TODO: fix behavior
+class DefaultValueValidationError(ValidationError): pass
 class MultipleObjectsReturned(Exception): pass
 class NotUniqueForeignKey(Exception): pass
 class DataTableDoesNotExist(Exception): pass
@@ -341,6 +342,11 @@ class Field(property):
         if self.is_primary_key: a.append("PRIMARY KEY")
         if not self.null: a.append("NOT NULL")
         if self.unique: a.append("UNIQUE")
+        if self.default is not None:
+            try: self.validate(None, self.default)
+            except ValidationError, e:
+                raise DefaultValueValidationError("Invalid default value: %s" % e)
+            a.append("DEFAULT '%s'" % str(self.default).replace("'", "''"))
         if self.extra_sql: a.append(self.extra_sql)
         return " ".join(a)
 
@@ -482,6 +488,7 @@ class ManyToOne(Field):
 
     def __get__(self, owner, cls):
         self._set_keys()
+        if getattr(owner, self.fkey) is None: return None
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
         sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
