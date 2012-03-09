@@ -131,7 +131,9 @@ def create_table(cls, cascade=False):
 
     # Generate CREATE TABLE clause and execute
     for k in sorted(field_order.keys()): field_clauses.append(field_order[k].field_clause())
-    sql  = "CREATE TABLE %s (\n  %s\n)" % (cdic["_meta"].table_name, ",\n  ".join(field_clauses))
+    sql  = "CREATE TABLE %s (\n  %s" % (cdic["_meta"].table_name, ",\n  ".join(field_clauses))
+    if cdic["_meta"].unique_together: sql += ",\n  UNIQUE (%s)" % ", ".join(cdic["_meta"].unique_together)
+    sql += "\n)"
     execute(sql)
 
 # --- Classes
@@ -539,6 +541,7 @@ class QuerySet(object):
         else:
             self.cls = parent
             self.clauses = {"type": "SELECT", "where": [], "order_by": [], "values": [], "distinct": False}
+            self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
         self.clauses["offset"] = 0
         self.clauses["limit"] = 0
         self.clauses["select_fields"] = "*"
@@ -575,6 +578,10 @@ class QuerySet(object):
         """Getting and setting a new cursor"""
         self._initialize_cursor()
         self.cur = self.cls._meta._conn.cursor().execute(self.sql, self.clauses["values"])
+
+    def _convert_order_fields(self, fields):
+        """Convert order ["-id", "name"] to ["id DESC", "name"]"""
+        return [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in fields]
 
     def __iter__(self):
         self._execute()
@@ -623,7 +630,8 @@ class QuerySet(object):
 
     def order_by(self, *args):
         newset = self.__class__(self)
-        newset.clauses["order_by"] += [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
+#        newset.clauses["order_by"] += [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
+        newset.clauses["order_by"] += self._convert_order_fields(args)
         return newset
 
     def __getitem__(self, index):
@@ -674,6 +682,8 @@ class ModelMeta(type):
         dict["TableAlreadyExists"] = type("TableAlreadyExists", (DataTableAlreadyExists,), {})
         dict["_meta"] = TableMetaClassProperty()
         dict["_meta"].table_name = dict.pop("_table_name", name.lower())
+        dict["_meta"].unique_together = dict.pop("_unique_together", [])
+        dict["_meta"].ordering = dict.pop("_ordering", [])
         return type.__new__(cls, name, bases, dict)
 
     def __init__(cls, name, bases, dict):

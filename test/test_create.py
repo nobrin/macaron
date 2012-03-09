@@ -12,6 +12,8 @@ class Team(macaron.Model):
     name = macaron.CharField(max_length=20)
 
 class Member(macaron.Model):
+    _unique_together = ["first_name", "last_name"]
+    _ordering = ["-id"]
     team = macaron.ManyToOne(Team, null=True, related_name="members", on_delete="SET NULL", on_update="CASCADE")
     first_name = macaron.CharField(max_length=20, default="unknown")
     last_name = macaron.CharField(max_length=20, default="noname")
@@ -34,7 +36,8 @@ class TestMacaron(unittest.TestCase):
   first_name VARCHAR(20) NOT NULL DEFAULT 'unknown',
   last_name VARCHAR(20) NOT NULL DEFAULT 'noname',
   part VARCHAR(10) NOT NULL,
-  age INTEGER NOT NULL DEFAULT '16'
+  age INTEGER NOT NULL DEFAULT '16',
+  UNIQUE (first_name, last_name)
 )"""
         macaron.create_table(Team)
         self.assertEqual(macaron.history.lastsql, sql1)
@@ -51,6 +54,13 @@ class TestMacaron(unittest.TestCase):
         self.assertEqual(member.last_name, "noname")
         self.assertEqual(member.part, "Vo")
         self.assertEqual(member.age, 16)
+
+        # test for ordering
+        team.members.append(first_name="Test1", part="Dr")
+        team.members.append(first_name="Test2", part="Gt")
+        ids = [3, 2, 1]
+        for m in team.members: self.assertEqual(m.id, ids.pop(0))
+        self.assertEqual(len(ids), 0)
 
         # test for ON DELETE SET NULL
         team.delete()
