@@ -22,11 +22,16 @@ SQL_MEMBER = """CREATE TABLE IF NOT EXISTS member (
 )"""
 
 class Team(macaron.Model):
+    name = macaron.CharField(max_length=20)
     def __str__(self):
         return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, related_name="members")
+    first_name = macaron.CharField(max_length=20, null=True)
+    last_name = macaron.CharField(max_length=20, null=True)
+    part = macaron.CharField(max_length=10, null=True)
+    age = macaron.IntegerField(null=True)
 
     def __str__(self):
         return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
@@ -41,11 +46,14 @@ class TestMacaron(unittest.TestCase):
 
     def setUp(self):
         macaron.macaronage(DB_FILE, lazy=True)
-        macaron.execute(SQL_TEAM)
-        macaron.execute(SQL_MEMBER)
+        #macaron.execute(SQL_TEAM)
+        #macaron.execute(SQL_MEMBER)
+        macaron.create_table(Team)
+        macaron.create_table(Member)
 
     def tearDown(self):
         macaron.bake()
+        macaron.cleanup()
 
     def testCRUD(self):
         # create team
@@ -140,7 +148,7 @@ class TestMacaron(unittest.TestCase):
 
         # sorry, I can't imagene what situation the distinct is used in.
         qs = Member.all().distinct()
-        self.assertEqual(qs.sql, "SELECT DISTINCT * FROM member")
+        self.assertEqual(qs.sql, 'SELECT DISTINCT * FROM "member"')
 
 if __name__ == "__main__":
     import os

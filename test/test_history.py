@@ -27,13 +27,13 @@ class TestHistoryLogger(unittest.TestCase):
 
         conn = sqlite3.connect(DB_FILE, factory=macaron._create_wrapper(logger))
         conn.execute(SQL_TEST)
-        self.assertEqual(sql_logger[0], "%s\nparams: []" % SQL_TEST)
+        self.assertEqual(str(sql_logger[0]), "%s\nparams: []" % SQL_TEST)
         conn.close()
 
     def testLogger_content(self):
         macaron.macaronage(DB_FILE, history=10)
         macaron.execute(SQL_TEST)
-        self.assertEqual(macaron.history[0], "%s\nparams: []" % SQL_TEST)
+        self.assertEqual(str(macaron.history[0]), "%s\nparams: []" % SQL_TEST)
         macaron.cleanup()
 
     def testMacaronOption_disabled(self):
@@ -44,7 +44,7 @@ class TestHistoryLogger(unittest.TestCase):
 
     def testMacaronOption_index(self):
         macaron.macaronage(DB_FILE, history=10)
-        def _index_error(): macaron.history[1]
+        def _index_error(): macaron.history[10]
         self.assertRaises(IndexError, _index_error)
         macaron.cleanup()
 

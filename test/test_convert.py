@@ -25,6 +25,7 @@ class StoreJSON(macaron.Field):
     def to_object(self, row, value): return json.loads(value)
 
 class MyRecord(macaron.Model):
+    name = macaron.CharField(max_length=20)
     value = StoreJSON()
     created = macaron.TimestampAtCreate()
     modified = macaron.TimestampAtSave()
@@ -33,13 +34,14 @@ class MyRecord(macaron.Model):
 class TestConverter(unittest.TestCase):
     def setUp(self):
         macaron.macaronage(dbfile=DB_FILE, lazy=True)
-        macaron.execute(sql_t_myrecord)
+        #macaron.execute(sql_t_myrecord)
+        macaron.create_table(MyRecord)
 
     def tearDown(self):
         macaron.bake()
         macaron.cleanup()
 
-    def testCRUD(self):
+    def testConvert(self):
         newrec = MyRecord.create(name="My test", value={"Macaron":"Good!"})
         self.assert_(newrec.created)
         self.assert_(newrec.modified)

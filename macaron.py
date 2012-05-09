@@ -46,9 +46,12 @@ class DataTableAlreadyExists(Exception): pass
 _m = None               # Macaron object
 _pre_field_order = []   # Created order of Model field object
 history = None          #: Returns history of SQL execution. You can get history like a list (index:0 is latest).
+SQL_TRACE_OUT = None    # In case of tracing SQL and parameters on CursorWrapper, set output stream(ex. sys.stderr)
+
+#_callbacks_when_connect = [] # TEMPORARY BUG FIX: see the comment of ModelMeta.__init__()
 
 # --- Module methods
-def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1):
+def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1, keep=False):
     """
     :param dbfile: SQLite database file name.
     :param lazy: Uses :class:`LazyConnection`.
@@ -56,6 +59,7 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     :param logger: Uses for logging SQL execution.
     :param history: Sets max count of SQL execution history (0 is unlimited, -1 is disabled).
                     Default: disabled
+    :param keep: keep previous object and connection (EXPERIMENTAL)
     :type logger: :class:`logging.Logger`
 
     Initializes macaron.
@@ -64,6 +68,7 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     will connect to the DB when using. If ``autocommit`` is ``True``, this will commits
     when this object will be unloaded.
     """
+    if keep and globals()["_m"]: return
     globals()["_m"] = Macaron()
     globals()["history"] = ListHandler(-1)
     conn = None
@@ -78,6 +83,12 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     _m.connection["default"] = conn
     _m.autocommit = autocommit
 
+    # TEMPORARY BUG FIX: see the comment of ModelMeta.__init__()
+    # For fetching column info only.
+#    for callback in _callbacks_when_connect:
+#        try: callback()
+#        except: pass
+
 def execute(*args, **kw):
     """Wrapper for ``Cursor#execute()``."""
     return _m.connection["default"].cursor().execute(*args, **kw)
@@ -91,16 +102,17 @@ def create_table(cls, cascade=False):
     if not issubclass(cls, Model): raise TypeError("The first arg must be Model class, not '%s'." % cls.__name__)
 
     # Check if table exists.
-    try:
-        cls._meta
+    table_name = cls.__dict__["_meta"].table_name
+    cur = execute("SELECT * FROM sqlite_master WHERE type = 'table' AND name = ?", [table_name])
+    if cur.fetchall():
         raise cls.TableAlreadyExists("Table '%s' already exists in database." % cls._meta.table_name)
-    except cls.TableDoesNotExist: pass
 
-    # Process Field and ManyToOne objects
+    # Process Field and ManyToOne objects, which are defined by user
     cdic = cls.__dict__ # for direct access to property objects
     field_order = {}
     has_primary_key = False
     for k, fld in filter(lambda (k, v): isinstance(v, Field), cdic.items()):
+        if not fld.is_user_defined: continue
         if isinstance(fld, ManyToOne):
             meta = None
             # The reference table exists or not.
@@ -111,7 +123,7 @@ def create_table(cls, cascade=False):
                     else: create_table(fld.ref)
             # Generate REFERENCES clause
             refkey = fld.ref_key or meta.primary_key.name
-            sql  = "REFERENCES %s(%s)" % (meta.table_name, refkey)
+            sql  = 'REFERENCES "%s"("%s")' % (meta.table_name, refkey)
             if fld.on_delete: sql += " ON DELETE %s" % fld.on_delete
             if fld.on_update: sql += " ON UPDATE %s" % fld.on_update
             fld.name = fld.fkey or "%s_id" % meta.table_name
@@ -131,10 +143,11 @@ def create_table(cls, cascade=False):
 
     # Generate CREATE TABLE clause and execute
     for k in sorted(field_order.keys()): field_clauses.append(field_order[k].field_clause())
-    sql  = "CREATE TABLE %s (\n  %s" % (cdic["_meta"].table_name, ",\n  ".join(field_clauses))
-    if cdic["_meta"].unique_together: sql += ",\n  UNIQUE (%s)" % ", ".join(cdic["_meta"].unique_together)
+    sql  = 'CREATE TABLE "%s" (\n  %s' % (cdic["_meta"].table_name, ",\n  ".join(field_clauses))
+    if cdic["_meta"].unique_together: sql += ',\n  UNIQUE ("%s")' % '", "'.join(cdic["_meta"].unique_together)
     sql += "\n)"
     execute(sql)
+    _m.connection["default"].cache_table_info(cdic["_meta"].table_name, warn=False)
 
 # --- Classes
 class Macaron(object):
@@ -172,9 +185,27 @@ def _create_wrapper(logger):
             super(ConnectionWrapper, self).__init__(*args, **kw)
             self.execute("PRAGMA foreign_keys = ON")    # fkey support ON (SQLite>=3.6.19)
 
+            # Cache results of PRAGMA table_info() for TRANSACTION
+            self.table_info = {}
+            cur = self.execute("SELECT * FROM sqlite_master WHERE type = 'table'")
+            for rec in cur:
+                self.cache_table_info(rec[2], warn=False)
+
         def cursor(self):
             self.logger = logger
             return super(ConnectionWrapper, self).cursor(CursorWrapper)
+
+        def cache_table_info(self, table_name, warn=True):
+            if warn:
+                raise UserWarning("Execution of PRAGMA table_info(%s) will break TRANSACTION." % table_name)
+            cur = self.execute('PRAGMA table_info("%s")' % table_name)
+            self.table_info[table_name] = cur.fetchall()
+            return self.table_info[table_name][:]
+
+        def get_table_info(self, table_name):
+            if self.table_info.has_key(table_name): return self.table_info[table_name][:]
+            return self.cache_table_info(table_name)
+
     return ConnectionWrapper
 
 class CursorWrapper(sqlite3.Cursor):
@@ -185,6 +216,9 @@ class CursorWrapper(sqlite3.Cursor):
         if(isinstance(history, ListHandler)):
             history.lastsql = sql
             history.lastparams = parameters
+        if SQL_TRACE_OUT:
+            SQL_TRACE_OUT.write("[macaron:SQL  ]:%s\n" % sql)
+            SQL_TRACE_OUT.write("[macaron:PARAM]:%s\n" % str(parameters))
         return super(CursorWrapper, self).execute(sql, parameters)
 
 class LazyConnection(object):
@@ -207,6 +241,15 @@ class ListHandler(logging.Handler):
 
        :param max_count: max count of SQL history (0 is unlimited, -1 is disabled)
     """
+    class _SQLParamTracer(object):
+        def __init__(self, msg):
+            m = re.match(r"(?P<sql>.+)\nparams: (?P<params>.+)", msg, re.MULTILINE + re.DOTALL)
+            if not m: raise RuntimeError("Invalid message format. '%s'" % msg)
+            self.sql = m.group("sql")
+            self.param_str = m.group("params")
+        def __str__(self): return "%s\nparams: %s" % (self.sql, self.param_str)
+        def __unicode__(self): return u"%s\nparams: %s" % (self.sql, self.param_str)
+
     def __init__(self, max_count=100):
         logging.Handler.__init__(self, logging.DEBUG)
         self.lastsql = None
@@ -218,7 +261,7 @@ class ListHandler(logging.Handler):
         if self._max_count < 0: return
         if self._max_count > 0:
             while len(self._list) >= self._max_count: self._list.pop()
-        self._list.insert(0, record.getMessage())
+        self._list.insert(0, self._SQLParamTracer(record.getMessage()))
 
     def _get_max_count(self): return self._max_count
 
@@ -305,7 +348,8 @@ class TableMetaInfo(object):
         self.primary_key = None             #: Primary key :class:`Field`
         self.table_name = table_name        #: Table name
         cur = conn.cursor()
-        rows = cur.execute("PRAGMA table_info(%s)" % table_name).fetchall()
+#        rows = cur.execute('PRAGMA table_info("%s")' % table_name).fetchall()
+        rows = conn.get_table_info(table_name)
         if not len(rows): raise cls.TableDoesNotExist()
         for row in rows:
             fld = FieldFactory.create(row, cls)
@@ -340,7 +384,7 @@ class Field(property):
         owner_obj._data[self.name] = self.cast(value)
 
     def field_clause(self):
-        a = [self.name, self.type]
+        a = ['"%s"' % self.name, self.type]
         if self.is_primary_key: a.append("PRIMARY KEY")
         if not self.null: a.append("NOT NULL")
         if self.unique: a.append("UNIQUE")
@@ -358,20 +402,32 @@ class AtSave(Field): pass
 class TimestampField(Field):
     TYPE_NAMES = (r"^TIMESTAMP$", r"^DATETIME$")
     SQL_TYPE = "TIMESTAMP"
-    def to_database(self, obj, value): return value.strftime("%Y-%m-%d %H:%M:%S")
-    def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    def to_database(self, obj, value):
+        if value is None: return None
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    def to_object(self, row, value):
+        if value is None: return None
+        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
 class DateField(Field):
     TYPE_NAMES = (r"^DATE$",)
     SQL_TYPE = "DATE"
-    def to_database(self, obj, value): return value.strftime("%Y-%m-%d")
-    def to_object(self, row, value): return datetime.strptime(value, "%Y-%m-%d").date()
+    def to_database(self, obj, value):
+        if value is None: return None
+        return value.strftime("%Y-%m-%d")
+    def to_object(self, row, value):
+        if value is None: return None
+        return datetime.strptime(value, "%Y-%m-%d").date()
 
 class TimeField(Field):
     TYPE_NAMES = (r"^TIME$",)
     SQL_TYPE = "TIME"
-    def to_database(self, obj, value): return value.strftime("%H-%M-%S")
-    def to_object(self, row, value): return datetime.strptime(value, "%H-%M-%S").time()
+    def to_database(self, obj, value):
+        if value is None: return None
+        return value.strftime("%H:%M:%S")
+    def to_object(self, row, value):
+        if value is None: return None
+        return datetime.strptime(value, "%H:%M:%S").time()
 
 class TimestampAtCreate(TimestampField, AtCreate):
     def __init__(self, **kw):
@@ -493,7 +549,7 @@ class ManyToOne(Field):
         if getattr(owner, self.fkey) is None: return None
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
-        sql = "SELECT %s.* FROM %s LEFT JOIN %s ON %s = %s.%s WHERE %s.%s = ?" \
+        sql = 'SELECT "%s".* FROM "%s" LEFT JOIN "%s" ON "%s" = "%s"."%s" WHERE "%s"."%s" = ?' \
             % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
                clstbl, cls._meta.primary_key.name)
         cur = cls._meta._conn.cursor()
@@ -503,10 +559,12 @@ class ManyToOne(Field):
         return self.ref._factory(cur, row)
 
     def __set__(self, owner, value):
-        if not isinstance(value, self.ref):
+        if value and not isinstance(value, self.ref):
             raise TypeError("This is related to '%s', not '%s'." % (self.ref.__name__, value.__class__.__name__))
         self._set_keys()
-        setattr(owner, self.fkey, getattr(value, self.ref_key))
+        if value is None: v = None
+        else: v = getattr(value, self.ref_key)
+        setattr(owner, self.fkey, v)
 
     def set_reverse(self, rev_cls):
         """Sets up one to many definition method.
@@ -559,9 +617,9 @@ class QuerySet(object):
         else: distinct = ""
 
         if self.clauses["type"] == "DELETE":
-            sqls = ["DELETE FROM %s" % self.cls._meta.table_name]
+            sqls = ['DELETE FROM "%s"' % self.cls._meta.table_name]
         else:
-            sqls = ["SELECT %s%s FROM %s" % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+            sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
 
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
@@ -598,19 +656,22 @@ class QuerySet(object):
     def get(self, where, values=None):
         if values == None:
             values = [where]
-            where = "%s = ?" % self.cls._meta.primary_key.name
+            where = '"%s" = ?' % self.cls._meta.primary_key.name
         qs = self.select(where, values)
         try: obj = qs.next()
         except StopIteration:
-            raise self.cls.DoesNotExist("%s object is not found." % cls.__name__)
+            raise self.cls.DoesNotExist("%s object is not found." % self.cls.__name__)
         try: qs.next()
         except StopIteration: return obj
         raise MultipleObjectsReturned("The 'get()' requires single result.")
 
-    def select(self, where=None, values=[]):
+    def select(self, where=None, values=[], **kw):
         newset = self.__class__(self)
         if where: newset.clauses["where"].append(where)
         if values: newset.clauses["values"] += values
+        for k, v in kw.items():
+            newset.clauses["where"].append('"%s" = ?' % k)
+            newset.clauses["values"].append(v)
         return newset
 
     def all(self):
@@ -648,7 +709,7 @@ class QuerySet(object):
     def aggregate(self, agg):
         def single_value(cur, row): return row[0]
         newset = self.__class__(self)
-        newset.clauses["select_fields"] = "%s(%s)" % (agg.name, agg.field_name)
+        newset.clauses["select_fields"] = '%s("%s")' % (agg.name, agg.field_name)
         newset.factory = single_value   # Change factory method for single value
         return newset.next()
 
@@ -691,6 +752,16 @@ class ModelMeta(type):
             if isinstance(dict[k], ManyToOne): dict[k].set_reverse(cls)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
 
+        # TEMPORARY BUG FIX:
+        # 'PRAGMA' is used in a transaction, it brakes the transaction.
+        # PRAGMA is used in the constructor of TableMetaInfo class for fetching table column info
+        # to generate Model columns. To detect auto-generated columns (ex. id) may need the
+        # mechanism.
+        # Now, to put a band-aid on that stuff, generate cls._meta immediately after connect.
+#        if cls.__dict__["_meta"].table_name:
+#            if not _m: _callbacks_when_connect.append(lambda: cls._meta)
+#            else: raise UserWarning("PRAGMA will brake the transaction.")
+
 class Model(object):
     """Base model class. Models must inherit this class."""
     __metaclass__ = ModelMeta
@@ -728,9 +799,9 @@ class Model(object):
         return QuerySet(cls).select()
 
     @classmethod
-    def select(cls, where, values):
+    def select(cls, where=None, values=[], **kw):
         """Getting QuerySet instance by WHERE clause"""
-        return QuerySet(cls).select(where, values)
+        return QuerySet(cls).select(where, values, **kw)
 
     @classmethod
     def create(cls, **kw):
@@ -746,7 +817,7 @@ class Model(object):
         Model._before_before_store(obj, "to_database", Field)   # convert object to database
         values = [getattr(obj, n) for n in names]
         holder = ", ".join(["?"] * len(names))
-        sql = "INSERT INTO %s (%s) VALUES (%s)" % (cls._meta.table_name, ", ".join(names), holder)
+        sql = 'INSERT INTO "%s" ("%s") VALUES (%s)' % (cls._meta.table_name, '", "'.join(names), holder)
         cls._save_and_update_object(obj, sql, values)
         obj.after_create()
         return obj
@@ -758,13 +829,13 @@ class Model(object):
         for fld in cls._meta.fields:
             if fld.is_primary_key: continue
             names.append(fld.name)
-        holder = ", ".join(["%s = ?" % n for n in names])
+        holder = ", ".join(['"%s" = ?' % n for n in names])
         Model._before_before_store(self, "set", AtSave) # set value
         self.validate()
         self.before_save()
         Model._before_before_store(self, "to_database", Field)  # convert object to database
         values = [getattr(self, n) for n in names]
-        sql = "UPDATE %s SET %s WHERE %s = ?" % (cls._meta.table_name, holder, cls._meta.primary_key.name)
+        sql = 'UPDATE "%s" SET %s WHERE "%s" = ?' % (cls._meta.table_name, holder, cls._meta.primary_key.name)
         cls._save_and_update_object(self, sql, values + [self.pk])
         self.after_save()
 
@@ -780,7 +851,7 @@ class Model(object):
     def delete(self):
         """Deleting the record"""
         cls = self.__class__
-        sql = "DELETE FROM %s WHERE %s = ?" % (cls._meta.table_name, cls._meta.primary_key.name)
+        sql = 'DELETE FROM "%s" WHERE "%s" = ?' % (cls._meta.table_name, cls._meta.primary_key.name)
         cls._meta._conn.cursor().execute(sql, [self.pk])
 
     @staticmethod
@@ -790,7 +861,7 @@ class Model(object):
         for fld in cls._meta.fields:
             if isinstance(fld, at_cls):
                 converter = getattr(fld, meth_name)
-                setattr(obj, fld.name, converter(cls, getattr(obj, fld.name)))
+                setattr(obj, fld.name, converter(obj, getattr(obj, fld.name)))
 
     def validate(self):
         cls = self.__class__
@@ -826,33 +897,39 @@ class MacaronPlugin(object):
     name = "macaron"
     api = 2
 
-    def __init__(self, dbfile=":memory:", autocommit=True):
+    def __init__(self, dbfile=":memory:", commit_on_success=True):
         self.dbfile = dbfile
-        self.autocommit = autocommit
+        self.commit_on_success = commit_on_success
+
+    def setup(self, app):
+        # 'macaronage' when MacaronPlugin is installed
+        macaronage(self.dbfile, lazy=True, autocommit=False)
 
     def apply(self, callback, ctx):
         conf = ctx.config.get("macaron") or {}
-        dbfile = conf.get("dbfile", self.dbfile)
-        autocommit = conf.get("autocommit", self.autocommit)
-
+#       dbfile = conf.get("dbfile", self.dbfile)
+#       commit_on_success = conf.get("commit_on_success", self.commit_on_success)
         import traceback as tb
+        import bottle
         def wrapper(*args, **kwargs):
-            macaronage(dbfile, lazy=True)
+#           macaronage(dbfile, lazy=True, autocommit=False, keep=True)
             try:
                 ret_value = callback(*args, **kwargs)
-                if autocommit: bake()   # commit
+                if self.commit_on_success: bake()   # commit
             except sqlite3.IntegrityError, e:
                 rollback()
-                try:
-                    import bottle
-                    traceback = None
-                    if bottle.DEBUG:
-                        traceback = (history.lastsql, history.lastparams)
-                        sqllog = "[Macaron]LastSQL: %s\n[Macaron]Params : %s\n" % traceback
-                        bottle.request.environ["wsgi.errors"].write(sqllog)
-                    raise bottle.HTTPError(500, "Database Error", e, tb.format_exc())
-                except ImportError:
-                    raise e
+                traceback = None
+                if bottle.DEBUG:
+                    traceback = (history.lastsql, history.lastparams)
+                    sqllog = "[Macaron]LastSQL: %s\n[Macaron]Params : %s\n" % traceback
+                    bottle.request.environ["wsgi.errors"].write(sqllog)
+                raise bottle.HTTPError(500, "Database Error", e, tb.format_exc())
+            except bottle.HTTPResponse, e:
+                if self.commit_on_success: bake()   # commit on HTTP response (ex. redirect())
+                raise e
+            except:
+                rollback()
+                raise
             return ret_value
         return wrapper
 

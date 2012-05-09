@@ -25,20 +25,26 @@ SQL_MEMBER = """CREATE TABLE member (
 )"""
 
 class Team(macaron.Model):
+    name = macaron.CharField(max_length=40)
     created = macaron.TimestampAtCreate()
     def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
     team = macaron.ManyToOne(Team, "members")
+    first_name = macaron.CharField(max_length=40)
+    last_name = macaron.CharField(max_length=40)
+    age = macaron.IntegerField(max=18, min=15, default=16, null=True)
+    part = macaron.CharField(max_length=10)
     joined = macaron.TimestampAtCreate()
     modified = macaron.TimestampAtSave()
-    age = macaron.IntegerField(max=18, min=15)
 
 class TestMacaron(unittest.TestCase):
     def setUp(self):
         macaron.macaronage(dbfile=DB_FILE, lazy=True)
-        macaron.execute(SQL_TEAM)
-        macaron.execute(SQL_MEMBER)
+        #macaron.execute(SQL_TEAM)
+        #macaron.execute(SQL_MEMBER)
+        macaron.create_table(Team)
+        macaron.create_table(Member)
 
     def tearDown(self):
         macaron.bake()

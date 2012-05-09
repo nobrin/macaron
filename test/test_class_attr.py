@@ -28,13 +28,17 @@ SQL_MEMBER = """CREATE TABLE member (
 )"""
 
 class Team(macaron.Model):
+    name = macaron.CharField(max_length=50)
     created = macaron.TimestampAtCreate()
     start_date = macaron.DateAtCreate()
     def __str__(self): return "<Team '%s'>" % self.name
 
 class Member(macaron.Model):
-    team = macaron.ManyToOne(Team, related_name="members")
-    age = macaron.IntegerField(max=18, min=15)
+    team = macaron.ManyToOne(Team, null=True, related_name="members")
+    first_name = macaron.CharField(max_length=20, null=True)
+    last_name = macaron.CharField(max_length=20, null=True)
+    part = macaron.CharField(max_length=10, null=True)
+    age = macaron.IntegerField(max=18, min=15, default=16)
     created = macaron.TimestampAtCreate()
     joined = macaron.DateAtCreate()
     modified = macaron.TimestampAtSave()
@@ -49,8 +53,8 @@ class TestMacaron(unittest.TestCase):
 
     def setUp(self):
         macaron.macaronage(DB_FILE)
-        macaron.execute(SQL_TEAM)
-        macaron.execute(SQL_MEMBER)
+        macaron.create_table(Team)
+        macaron.create_table(Member)
 
     def tearDown(self):
         macaron.bake()
@@ -59,7 +63,7 @@ class TestMacaron(unittest.TestCase):
         # initializes Team class
         prop = Team.__dict__["_meta"]
         self.assertEqual(type(prop), macaron.TableMetaClassProperty)
-        self.assertEqual(prop.table_meta, None)
+        self.assert_(isinstance(prop.table_meta, macaron.TableMetaInfo))
         self.assertEqual(prop.table_name, "team")
         team = Team.create(name="Houkago Tea Time")
         self.assertEqual(type(prop.table_meta), macaron.TableMetaInfo)
