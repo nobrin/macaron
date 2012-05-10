@@ -28,7 +28,7 @@ __author__ = "Nobuo Okazaki"
 __version__ = "0.3.2-dev"
 __license__ = "MIT License"
 
-import sqlite3, re
+import sqlite3, re, sys
 import copy
 import logging
 from datetime import datetime
@@ -149,6 +149,11 @@ def create_table(cls, cascade=False):
     execute(sql)
     _m.connection["default"].cache_table_info(cdic["_meta"].table_name, warn=False)
 
+def create_link_table(cls):
+    cdic = cls.__dict__ # for direct access to property objects
+    for k, fld in filter(lambda (k, v): isinstance(v, ManyToManyField), cdic.items()):
+        create_table(fld.lnk)
+
 # --- Classes
 class Macaron(object):
     """Macaron controller class. Do not instance this class by user."""
@@ -198,6 +203,8 @@ def _create_wrapper(logger):
         def cache_table_info(self, table_name, warn=True):
             if warn:
                 raise UserWarning("Execution of PRAGMA table_info(%s) will break TRANSACTION." % table_name)
+#            else:
+#                print 'PRAGMA table_info("%s")' % table_name
             cur = self.execute('PRAGMA table_info("%s")' % table_name)
             self.table_info[table_name] = cur.fetchall()
             return self.table_info[table_name][:]
@@ -219,7 +226,12 @@ class CursorWrapper(sqlite3.Cursor):
         if SQL_TRACE_OUT:
             SQL_TRACE_OUT.write("[macaron:SQL  ]:%s\n" % sql)
             SQL_TRACE_OUT.write("[macaron:PARAM]:%s\n" % str(parameters))
-        return super(CursorWrapper, self).execute(sql, parameters)
+        try:
+            return super(CursorWrapper, self).execute(sql, parameters)
+        except:
+            sys.stderr.write("[macaron:Error in SQL  ]\n%s\n" % sql)
+            sys.stderr.write("[macaron:Error in PARAM]\n%s\n" % str(parameters))
+            raise
 
 class LazyConnection(object):
     """Lazy connection wrapper"""
@@ -533,19 +545,19 @@ class ManyToOne(Field):
         super(ManyToOne, self).__init__(**kw)
         self.ref = ref                      #: reference table ('one' side)
         self.fkey = fkey                    #: foreign key name ('many' side)
-        self.ref_key = ref_key              #: reference key ('one' side)
+        self._ref_key = ref_key             #: primary key of reference table ('one' side)
         self.related_name = related_name    #: accessor name for one to many relation
         self.on_delete = on_delete
         self.on_update = on_update
         _pre_field_order.append(self)
 
-    def _set_keys(self):
-        self.name = self.fkey = self.fkey or "%s_id" % self.ref._meta.table_name
-        self.ref_key = self.ref_key or self.ref._meta.primary_key.name
-        self.type = self.ref._meta.fields[self.ref_key].type
+    def _get_ref_key(self):
+        self._ref_key = self._ref_key or self.ref._meta.primary_key.name
+        assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
+        return self._ref_key
+    ref_key = property(_get_ref_key)
 
     def __get__(self, owner, cls):
-        self._set_keys()
         if getattr(owner, self.fkey) is None: return None
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
@@ -561,33 +573,82 @@ class ManyToOne(Field):
     def __set__(self, owner, value):
         if value and not isinstance(value, self.ref):
             raise TypeError("This is related to '%s', not '%s'." % (self.ref.__name__, value.__class__.__name__))
-        self._set_keys()
         if value is None: v = None
         else: v = getattr(value, self.ref_key)
         setattr(owner, self.fkey, v)
 
-    def set_reverse(self, rev_cls):
-        """Sets up one to many definition method.
+    def _called_in_modelmeta_init(self, rev_cls, fld_name):
+        """Sets up one-to-many definition method.
         This method will be called in ``ModelMeta#__init__``. To inform the
         model class to ManyToOne and _ManyToOne_Rev classes. The *rev_class*
         means **'many(child)' side class**.
         """
+        self.name = fld_name    # set field name
+        if not self.fkey: self.fkey = "%s_id" % self.name
+        assert self.name, "ManyToOne#name couldn't be specified."
+        assert self.fkey, "ManyToOne#fkey couldn't be specified."
         self.related_name = self.related_name or "%s_set" % rev_cls.__name__.lower()
-        setattr(self.ref, self.related_name, _ManyToOne_Rev(self.ref, self.ref_key, rev_cls, self.fkey))
+        setattr(self.ref, self.related_name, _ManyToOne_Rev(self.ref, self._ref_key, rev_cls, self.fkey))
 
 class _ManyToOne_Rev(property):
-    """The reverse of many to one relationship."""
+    """The reverse of many-to-one relationship (i.e. 'one' side)."""
     def __init__(self, ref, ref_key, rev, rev_fkey):
         self.ref = ref              # Reference table (parent)
-        self.ref_key = ref_key      # Key column name of parent
+        self._ref_key = ref_key     # Key column name of parent
         self.rev = rev              # Child table (many side)
         self.rev_fkey = rev_fkey    # Foreign key name of child
+        assert self.rev_fkey, "Foreign key was not specified in ManyToOne#_called_in_modelmeta_init"
+
+    def _get_ref_key(self):
+        self._ref_key = self._ref_key or self.ref._meta.primary_key.name
+        assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
+        return self._ref_key
+    ref_key = property(_get_ref_key)
 
     def __get__(self, owner, cls):
-        self.rev_fkey = self.rev_fkey or "%s_id" % self.ref._meta.table_name
-        self.ref_key = self.ref_key or self.ref._meta.primary_key.name
         qs = self.rev.select("%s = ?" % self.rev_fkey, [getattr(owner, self.ref_key)])
         return ManyToOneRevSet(qs, owner, self)
+
+# --- Many-to-many relationship
+class _ManyToManyBase(property):
+    def __init__(self, ref, related_name=None, lnk=None, cls=None):
+        self.ref = ref
+        self.lnk = lnk
+        self.cls = cls
+        self.related_name = related_name
+
+    def _get_link_class(self):
+        if isinstance(self._lnk, basestring):
+            self._lnk = getattr(sys.modules[self.cls.__module__], self._lnk)
+        return self._lnk
+    def _set_link_class(self, value): self._lnk = value
+    lnk = property(_get_link_class, _set_link_class)
+
+    def __get__(self, owner, cls):
+        qs = cls.select('"%s"."%s"=?' % (cls._meta.table_name, cls._meta.primary_key.name), [owner.pk])
+        return ManyToManySet(qs, owner, self.ref, self.lnk)
+
+class ManyToManyField(_ManyToManyBase):
+    def __init__(self, ref, related_name=None, lnk=None):
+        super(ManyToManyField, self).__init__(ref, related_name, lnk)
+
+    def _called_in_modelmeta_init(self, cls, fld_name):
+        # This method will be called in ModelMeta#__init__().
+        # When called, module have not been initialized completely.
+        # For that we may not get class, self._lnk has class name as string.
+        self.cls = cls
+        self.name = fld_name
+        if self._lnk is None: self._lnk = self.generate_link_class()
+        self.related_name = self.related_name or "%s_set" % cls.__name__.lower()
+        setattr(self.ref, self.related_name, _ManyToManyBase(cls, lnk=self._lnk, cls=self.ref))
+
+    def generate_link_class(self):
+        name = "%s%sLink" % (self.cls.__name__, self.ref.__name__)
+        h = {
+            self.cls.__name__.lower(): ManyToOne(self.cls, on_delete="CASCADE", on_update="CASCADE"),
+            self.ref.__name__.lower(): ManyToOne(self.ref, on_delete="CASCADE", on_update="CASCADE"),
+        }
+        return type(name, (Model,), h)
 
 # --- QuerySet
 class QuerySet(object):
@@ -596,14 +657,15 @@ class QuerySet(object):
         if isinstance(parent, QuerySet):
             self.cls = parent.cls
             self.clauses = copy.deepcopy(parent.clauses)
+            self.factory = parent.factory   # Factory method converting record to object
         else:
             self.cls = parent
-            self.clauses = {"type": "SELECT", "where": [], "order_by": [], "values": [], "distinct": False}
+            self.clauses = {"type":"SELECT", "joins":[], "where":[], "order_by":[], "values":[], "distinct":False}
             self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
+            self.factory = self.cls._factory
         self.clauses["offset"] = 0
         self.clauses["limit"] = 0
         self.clauses["select_fields"] = "*"
-        self.factory = self.cls._factory    # Factory method converting record to object
         self._initialize_cursor()
 
     def _initialize_cursor(self):
@@ -621,14 +683,16 @@ class QuerySet(object):
         else:
             sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
 
+        if len(self.clauses["joins"]): sqls += self.clauses["joins"]
+
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
 
         if self.clauses["type"] == "SELECT":
             if len(self.clauses["order_by"]):
-                sqls.append("ORDER BY %s" % ", ".join(self.clauses["order_by"]))
-            if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
+                sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
             if self.clauses["limit"]: sqls.append("LIMIT %d" % self.clauses["limit"])
+            if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
         return "\n".join(sqls)
     sql = property(_generate_sql)   #: Generating SQL
 
@@ -638,8 +702,12 @@ class QuerySet(object):
         self.cur = self.cls._meta._conn.cursor().execute(self.sql, self.clauses["values"])
 
     def _convert_order_fields(self, fields):
-        """Convert order ["-id", "name"] to ["id DESC", "name"]"""
-        return [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in fields]
+        """Convert order ['-id', 'name'] to ['"id" DESC', '"name"']"""
+        res = []
+        for n in fields:
+            if n.startswith("-"): res.append(re.sub(r"^-(.+)$", r'"\1" DESC', n))
+            else: res.append('"%s"' % n)
+        return res
 
     def __iter__(self):
         self._execute()
@@ -653,25 +721,46 @@ class QuerySet(object):
         self._cache.append(self.factory(self.cur, row))
         return self._cache[-1]
 
-    def get(self, where, values=None):
-        if values == None:
-            values = [where]
-            where = '"%s" = ?' % self.cls._meta.primary_key.name
-        qs = self.select(where, values)
+    def get(self, *args, **kw):
+        if len(args) == 1:
+            args = ('"%s" = ?' % self.cls._meta.primary_key.name, args[0])
+        qs = self.select(*args, **kw)
         try: obj = qs.next()
-        except StopIteration:
-            raise self.cls.DoesNotExist("%s object is not found." % self.cls.__name__)
+        except StopIteration: raise self.cls.DoesNotExist("%s object is not found." % self.cls.__name__)
         try: qs.next()
         except StopIteration: return obj
         raise MultipleObjectsReturned("The 'get()' requires single result.")
 
-    def select(self, where=None, values=[], **kw):
+    def select(self, *args, **kw):
         newset = self.__class__(self)
-        if where: newset.clauses["where"].append(where)
-        if values: newset.clauses["values"] += values
+        if len(args) == 1:
+            newset.clauses["where"].append(args[0])
+        elif len(args) == 2:
+            newset.clauses["where"].append(args[0])
+            if isinstance(args[1], (list, tuple)): newset.clauses["values"] += list(args[1])
+            else: newset.clauses["values"].append(args[1])
+        elif len(args) > 2:
+            raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
+
+        cls = self.cls
         for k, v in kw.items():
-            newset.clauses["where"].append('"%s" = ?' % k)
-            newset.clauses["values"].append(v)
+            items = k.split("__")
+            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
+            if len(items) == 2:
+                if items[1] == "in": wh = '"%s" IN (%s)' % (items[0], ",".join(["?"] * len(v)))
+            else:
+                if not cls.__dict__.has_key(k):
+                    raise RuntimeError("Field '%s' is not in model '%s'." % (k, cls.__name__))
+                fld = cls.__dict__[k]
+                if isinstance(fld, ManyToOne):  # ManyToOne field
+                    if not isinstance(v, fld.ref):
+                        msg = "Field '%s.%s' is related with '%s', not '%s'."
+                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
+                    k, v = fld.fkey, v.pk
+                wh = '"%s" = ?' % k
+            newset.clauses["where"].append(wh)
+            if isinstance(v, (list, tuple)): newset.clauses["values"] += list(v)
+            else: newset.clauses["values"].append(v)
         return newset
 
     def all(self):
@@ -699,7 +788,13 @@ class QuerySet(object):
         newset = self.__class__(self)
         if isinstance(index, slice):
             start, stop = index.start or 0, index.stop or 0
-            newset.clauses["offset"], newset.clauses["limit"] = start, stop - start
+            newset.clauses["offset"] = start
+            if stop:
+                if stop <= start:
+                    raise ValueError("Slice stop must be larger than start value.[start:%d,stop:%d]" % (start, stop))
+                else: newset.clauses["limit"] = stop - start
+            else:
+                newset.clauses["limit"] = 0
             return newset
         elif self._index >= index: return self._cache[index]
         for obj in self:
@@ -734,6 +829,41 @@ class ManyToOneRevSet(QuerySet):
         kw[self.cls_fkey] = getattr(self.parent, self.parent_key)
         return self.cls.create(*args, **kw)
 
+class ManyToManySet(QuerySet):
+    def __init__(self, parent_query, parent_object=None, ref=None, lnk=None):
+        super(ManyToManySet, self).__init__(parent_query)
+        # When call on slice procedure of QuerySet, return
+        if not(parent_object and ref and lnk): return
+
+        self.parent = parent_object
+        self.ref = ref
+        self.lnk = lnk
+        clstbl, cls_id = self.cls._meta.table_name, self.cls._meta.primary_key.name
+        reftbl, ref_id = ref._meta.table_name, ref._meta.primary_key.name
+        lnktbl, lnkcls_id, lnkref_id = lnk._meta.table_name, "%s_id" % clstbl, "%s_id" % reftbl
+        self.clauses["select_fields"] = '"%s".*' % reftbl
+        self.clauses["joins"] = [
+            'INNER JOIN "%s" ON "%s"."%s" = "%s"' % (lnktbl, clstbl, cls_id, lnkcls_id),
+            'INNER JOIN "%s" ON "%s" = "%s"."%s"' % (reftbl, lnkref_id, reftbl, ref_id),
+        ]
+        self.factory = ref._factory
+
+    def append(self, *args, **kw):
+        if len(args):
+            if not isinstance(args[0], self.ref):
+                raise TypeError("Object must be '%s', not '%s'." % (self.ref.__name__, type(args[0]).__name__))
+            h = {
+                "%s_id" % self.cls.__name__.lower(): self.parent.pk,
+                "%s_id" % self.ref.__name__.lower(): args[0].pk,
+            }
+            self.lnk.create(**h)
+            return args[0]
+        obj = self.ref.create(**kw)
+        return self.append(obj)
+
+    def clear(self):
+        self.lnk.select(**{"%s_id" % self.cls.__name__.lower(): self.parent.pk}).delete()
+
 # --- BaseModel and Model class
 class ModelMeta(type):
     """Meta class for Model class"""
@@ -749,7 +879,8 @@ class ModelMeta(type):
 
     def __init__(cls, name, bases, dict):
         for k in dict.keys():
-            if isinstance(dict[k], ManyToOne): dict[k].set_reverse(cls)
+            if isinstance(dict[k], ManyToManyField): dict[k]._called_in_modelmeta_init(cls, k)
+            if isinstance(dict[k], ManyToOne): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
 
         # TEMPORARY BUG FIX:
@@ -790,18 +921,13 @@ class Model(object):
         return cls(**h)
 
     @classmethod
-    def get(cls, where, values=None):
-        """Getting single result by ID"""
-        return QuerySet(cls).get(where, values)
+    def get(cls, *args, **kw): return QuerySet(cls).get(*args, **kw)
 
     @classmethod
-    def all(cls):
-        return QuerySet(cls).select()
+    def all(cls): return QuerySet(cls).select()
 
     @classmethod
-    def select(cls, where=None, values=[], **kw):
-        """Getting QuerySet instance by WHERE clause"""
-        return QuerySet(cls).select(where, values, **kw)
+    def select(cls, *args, **kw): return QuerySet(cls).select(*args, **kw)
 
     @classmethod
     def create(cls, **kw):
@@ -880,6 +1006,9 @@ class Model(object):
 
     def __repr__(self):
         return "<%s object %s>" % (self.__class__.__name__, self.pk)
+
+    def __unicode__(self): return u"<%s object %s>" % (self.__class__.__name__, self.pk)
+    def __str__(self): return unicode(self).encode("utf-8")
 
 # --- Aggregation functions
 class AggregateFunction(object):

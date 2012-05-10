@@ -94,9 +94,11 @@ class TestMacaron(unittest.TestCase):
         prop = Team.__dict__["members"]
         self.assertEqual(type(prop), macaron._ManyToOne_Rev)
         self.assertEqual(prop.ref, Team)
-        self.assertEqual(prop.ref_key, None, "This is None for setting at delay (in _ManyToOne_Rev#__get__).")
+#        self.assertEqual(prop.ref_key, None, "This is None for setting at delay (in _ManyToOne_Rev#__get__).")
+        self.assertEqual(prop.ref_key, "id")
         self.assertEqual(prop.rev, Member)
-        self.assertEqual(prop.rev_fkey, None, "This is None for setting at delay (in _ManyToOne_Rev#__get__).")
+        #self.assertEqual(prop.rev_fkey, None, "This is None for setting at delay (in _ManyToOne_Rev#__get__).")
+        self.assertEqual(prop.rev_fkey, "team_id")
 
         members = team.members  # this triggers setting for ref_key and rev_fkey
         self.assertEqual(type(members), macaron.ManyToOneRevSet)
