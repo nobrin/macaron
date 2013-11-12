@@ -51,7 +51,7 @@ SQL_TRACE_OUT = None    # In case of tracing SQL and parameters on CursorWrapper
 #_callbacks_when_connect = [] # TEMPORARY BUG FIX: see the comment of ModelMeta.__init__()
 
 # --- Module methods
-def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1, keep=False):
+def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1, keep=False, threading=False):
     """
     :param dbfile: SQLite database file name.
     :param lazy: Uses :class:`LazyConnection`.
@@ -77,8 +77,8 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
         logger.setLevel(logging.DEBUG)
         globals()["history"].set_max_count(history)
         logger.addHandler(globals()["history"])
-    if lazy: conn = LazyConnection(dbfile, factory=_create_wrapper(logger))
-    else: conn = sqlite3.connect(dbfile, factory=_create_wrapper(logger))
+    if lazy: conn = LazyConnection(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
+    else: conn = sqlite3.connect(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
     if not conn: raise Exception("Can't create connection.")
     _m.connection["default"] = conn
     _m.autocommit = autocommit
