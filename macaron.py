@@ -77,6 +77,13 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
         logger.setLevel(logging.DEBUG)
         globals()["history"].set_max_count(history)
         logger.addHandler(globals()["history"])
+    # To avoid sqlite3.ProgrammingError in checking same thread, specify 'check_same_thread' False.
+    # This suppress the message when apache2 is shuting down, below.
+    #   Exception sqlite3.ProgrammingError: 'SQLite objects created in a thread can only be used
+    #   in that same thread.The object was created in thread id -1249404048 and this is thread
+    #   id -1221678384' in <bound method Macaron.__del__ of <macaron.Macaron object at 0xb4a93eec>> ignored
+    # But this is NOT a fundamental solution...Maybe.
+    # About threadsafety of sqlite3: http://www.sqlite.org/threadsafe.html
     if lazy: conn = LazyConnection(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
     else: conn = sqlite3.connect(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
     if not conn: raise Exception("Can't create connection.")
