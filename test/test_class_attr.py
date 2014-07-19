@@ -71,7 +71,7 @@ class TestMacaron(unittest.TestCase):
 
         # tests attributes of class properties
         prop = Team.__dict__["id"]
-        self.assertEqual(type(prop), macaron.IntegerField)
+        self.assertEqual(type(prop), macaron.SerialKeyField)
         self.assertEqual(prop.null, True)
         self.assertEqual(prop.default, None)
         self.assertEqual(prop.is_primary_key, True)

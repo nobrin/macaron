@@ -55,7 +55,7 @@ class TestMacaron(unittest.TestCase):
             {"name":"name", "default":None, "null":False, "max_length":40},
             {"name":"created", "default":None, "null":True},
         )
-        clss = (macaron.IntegerField, macaron.CharField, macaron.TimestampAtCreate)
+        clss = (macaron.SerialKeyField, macaron.CharField, macaron.TimestampAtCreate)
         for idx in range(0, len(Team._meta.fields)):
             fld = Team._meta.fields[idx]
             for n in chks[idx].keys():

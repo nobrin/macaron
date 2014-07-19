@@ -29,7 +29,7 @@ __version__ = "0.3.2-dev"
 __license__ = "MIT License"
 
 import sqlite3, re, sys
-import copy
+import copy, warnings
 import logging
 from datetime import datetime
 
@@ -197,6 +197,7 @@ def _create_wrapper(logger):
         def __init__(self, *args, **kw):
             super(ConnectionWrapper, self).__init__(*args, **kw)
             self.execute("PRAGMA foreign_keys = ON")    # fkey support ON (SQLite>=3.6.19)
+            self.warn_pragma = True
 
             # Cache results of PRAGMA table_info() for TRANSACTION
             self.table_info = {}
@@ -209,7 +210,7 @@ def _create_wrapper(logger):
             return super(ConnectionWrapper, self).cursor(CursorWrapper)
 
         def cache_table_info(self, table_name, warn=True):
-            if warn:
+            if self.warn_pragma and warn:
                 raise UserWarning("Execution of PRAGMA table_info(%s) will break TRANSACTION." % table_name)
 #            else:
 #                print 'PRAGMA table_info("%s")' % table_name
@@ -361,20 +362,54 @@ class TableMetaInfo(object):
     This object has table information, which is set to ModelClass._meta by
     :class:`ModelMeta`. If you use ``Bookmark`` class, you can access the
     table information with ``Bookmark._meta``.
+    This mechanism is for collecting information after initialization of all of models.
     """
     def __init__(self, conn, table_name, cls):
         self._conn = conn                   #: Connection for the table
         self.fields = FieldInfoCollection() #: Table fields collection
         self.primary_key = None             #: Primary key :class:`Field`
         self.table_name = table_name        #: Table name
-        cur = conn.cursor()
-#        rows = cur.execute('PRAGMA table_info("%s")' % table_name).fetchall()
-        rows = conn.get_table_info(table_name)
-        if not len(rows): raise cls.TableDoesNotExist()
-        for row in rows:
-            fld = FieldFactory.create(row, cls)
-            self.fields.append(fld)
+
+        # To avoid duplicated definition of class field.
+        # Initial fields are specified in _meta.initial_field
+        field_order = {}
+#        for name, fld in cls.__dict__.items():
+#            if not isinstance(fld, Field): continue
+        for name, fld in cls.__dict__["_meta"].initial_field.items():
+            field_order[_pre_field_order.index(fld)] = fld
+            fld.name = name
+
+        # --- TEMPORARY BUG FIX ---
+        for idx in sorted(field_order.keys()):
+            fld = field_order[idx]
+            if isinstance(fld, ManyToOne):
+                # In case of ManyToOne field, the actual field of the one is set into the class.
+                # ex. author ManyToOne field corresponds to author_id IntegerField.
+                if not cls.__dict__.has_key(fld.fkey):
+                    reffld = None
+                    for f in filter(lambda v:isinstance(v, Field), fld.ref.__dict__.values()):
+                        if f.is_primary_key: reffld = f
+                    if isinstance(reffld, IntegerField): fkey = IntegerField(null=fld.null)
+                    assert fkey, "Foreign key must be Integer"
+                    setattr(cls, fld.fkey, fkey)
+                else:
+                    fkey = cls.__dict__[fld.fkey]
+                fkey.name = fld.fkey
+                self.fields.append(fkey)
+                if not isinstance(cls.__dict__[fld.fkey], Field):
+                    fmt = "%s.%s will be used for ManyToOne foreign key field. You must use other name."
+                    raise TypeError(fmt % (self.__class__.__name__, fld.fkey))
+            else:
+                self.fields.append(fld)
             if fld.is_primary_key: self.primary_key = fld
+
+#        cur = conn.cursor()
+#        rows = conn.get_table_info(table_name)
+#        if not len(rows): raise cls.TableDoesNotExist()
+#        for row in rows:
+#            fld = FieldFactory.create(row, cls)
+#            self.fields.append(fld)
+#            if fld.is_primary_key: self.primary_key = fld
 
 # --- Field converting and validation
 class Field(property):
@@ -514,6 +549,10 @@ class IntegerField(FloatField):
             raise ValidationError("Field '%s': Value must be an integer, not '%s' [%s]." % (type(value).__name__, value))
         return True
 
+class SerialKeyField(IntegerField):
+    def __init__(self, primary_key=True, null=True, **kw):
+        super(SerialKeyField, self).__init__(primary_key=primary_key, null=null, **kw)
+
 class CharField(Field):
     TYPE_NAMES = ("CHAR", "CLOB", "TEXT")
     def __init__(self, max_length=None, min_length=None, length=None, **kw):
@@ -525,8 +564,8 @@ class CharField(Field):
 
     def _get_sql_type(self):
         if self._type: return self._type
-        if self.max_length: return "VARCHAR(%d)" % self.max_length
         if self.length: return "CHAR(%d)" % self.length
+        if self.max_length: return "VARCHAR(%d)" % self.max_length
         return "TEXT"
     def _set_sql_type(self, value): self._type = value
     type = property(_get_sql_type, _set_sql_type)
@@ -875,6 +914,7 @@ class ManyToManySet(QuerySet):
 # --- BaseModel and Model class
 class ModelMeta(type):
     """Meta class for Model class"""
+    suspended = {}
     def __new__(cls, name, bases, dict):
         dict["DoesNotExist"] = type("DoesNotExist", (ObjectDoesNotExist,), {})
         dict["TableDoesNotExist"] = type("TableDoesNotExist", (DataTableDoesNotExist,), {})
@@ -883,13 +923,31 @@ class ModelMeta(type):
         dict["_meta"].table_name = dict.pop("_table_name", name.lower())
         dict["_meta"].unique_together = dict.pop("_unique_together", [])
         dict["_meta"].ordering = dict.pop("_ordering", [])
+        dict["_meta"].initial_field = {}
+        for k, v in dict.items():
+            if isinstance(v, Field): dict["_meta"].initial_field[k] = v
         return type.__new__(cls, name, bases, dict)
 
     def __init__(cls, name, bases, dict):
+        # Process suspended initializing
+        if ModelMeta.suspended.has_key(cls.__name__):
+            p = ModelMeta.suspended.pop(cls.__name__)
+            p[0].ref = cls
+            p[0]._called_in_modelmeta_init(p[1], p[2])
+
+        has_primary_key = False
         for k in dict.keys():
             if isinstance(dict[k], ManyToManyField): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], ManyToOne): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
+            if isinstance(dict[k], Field) and dict[k].is_primary_key: has_primary_key = True
+
+        if not has_primary_key:
+            fld = SerialKeyField() # for Serial key
+            cls.id = fld
+            _pre_field_order.pop(_pre_field_order.index(fld))
+            _pre_field_order.insert(0, fld)
+            dict["_meta"].initial_field["id"] = fld
 
         # TEMPORARY BUG FIX:
         # 'PRAGMA' is used in a transaction, it brakes the transaction.
