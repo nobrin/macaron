@@ -25,7 +25,7 @@ Example::
     >>> macaron.cleanup()
 """
 __author__ = "Nobuo Okazaki"
-__version__ = "0.3.2-dev"
+__version__ = "0.4.0-dev"
 __license__ = "MIT License"
 
 import sqlite3, re, sys
@@ -165,7 +165,7 @@ def create_table(cls, cascade=False):
     execute(sql)
     _m.connection["default"].cache_table_info(cdic["_meta"].table_name, warn=False)
 
-def create_link_table(cls):
+def create_link_tables(cls):
     cdic = cls.__dict__ # for direct access to property objects
     for k, fld in filter(lambda (k, v): isinstance(v, ManyToManyField), cdic.items()):
         create_table(fld.lnk)
