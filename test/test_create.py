@@ -42,7 +42,7 @@ class TestMacaron(unittest.TestCase):
   "first_name" VARCHAR(20) NOT NULL DEFAULT 'unknown',
   "last_name" VARCHAR(20) NOT NULL DEFAULT 'noname',
   "part" VARCHAR(10) NOT NULL,
-  "age" INTEGER NOT NULL DEFAULT '16',
+  "age" INTEGER NOT NULL DEFAULT 16,
   UNIQUE ("first_name", "last_name")
 )"""
         macaron.create_table(Team)

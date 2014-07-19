@@ -414,7 +414,9 @@ class TableMetaInfo(object):
 # --- Field converting and validation
 class Field(property):
     SQL_TYPE = "UNKNOWN"
+    VALUE_TYPE = "CHAR" # CHAR or NUM for quotation
     is_user_defined = False
+
     def __init__(self, null=False, default=None, primary_key=False, unique=False, extra_sql=""):
         self.name, self.type = None, self.SQL_TYPE
         self.null, self.default, self.unique = null, default, unique
@@ -439,6 +441,8 @@ class Field(property):
         owner_obj._data[self.name] = self.cast(value)
 
     def field_clause(self):
+        if self.type == Field.SQL_TYPE:
+            warnings.warn("'%s'.type is '%s'." % (self.__class__.__name__, Field.SQL_TYPE))
         a = ['"%s"' % self.name, self.type]
         if self.is_primary_key: a.append("PRIMARY KEY")
         if not self.null: a.append("NOT NULL")
@@ -447,7 +451,9 @@ class Field(property):
             try: self.validate(None, self.default)
             except ValidationError, e:
                 raise DefaultValueValidationError("Invalid default value: %s" % e)
-            a.append("DEFAULT '%s'" % str(self.default).replace("'", "''"))
+            if self.VALUE_TYPE == "CHAR": a.append("DEFAULT '%s'" % str(self.default).replace("'", "''"))
+            elif self.VALUE_TYPE == "NUM": a.append("DEFAULT %s" % self.default)
+            else: raise ValueError("%s.VALUE_TYPE must be 'CHAR' or 'NUM'." % self.__class__.__name__)
         if self.extra_sql: a.append(self.extra_sql)
         return " ".join(a)
 
@@ -509,6 +515,8 @@ class TimeAtSave(TimeAtCreate, AtSave): pass
 class FloatField(Field):
     TYPE_NAMES = ("REAL", "FLOA", "DOUB")
     SQL_TYPE = "FLOAT"
+    VALUE_TYPE = "NUM"
+
     def __init__(self, max=None, min=None, **kw):
         super(FloatField, self).__init__(**kw)
         self.max, self.min = max, min
@@ -630,11 +638,20 @@ class ManyToOne(Field):
         model class to ManyToOne and _ManyToOne_Rev classes. The *rev_class*
         means **'many(child)' side class**.
         """
+        # If self.ref is string and the class have not been initialized,
+        # initializing the relationship is suspended.
+        if isinstance(self.ref, str):
+            if not hasattr(sys.modules[rev_cls.__module__], self.ref):
+                type(rev_cls).suspended[self.ref] = (self, rev_cls, fld_name)
+                return
+            self.ref = getattr(sys.modules[rev_cls.__module__], self.ref)
+
         self.name = fld_name    # set field name
         if not self.fkey: self.fkey = "%s_id" % self.name
         assert self.name, "ManyToOne#name couldn't be specified."
         assert self.fkey, "ManyToOne#fkey couldn't be specified."
         self.related_name = self.related_name or "%s_set" % rev_cls.__name__.lower()
+
         setattr(self.ref, self.related_name, _ManyToOne_Rev(self.ref, self._ref_key, rev_cls, self.fkey))
 
 class _ManyToOne_Rev(property):
