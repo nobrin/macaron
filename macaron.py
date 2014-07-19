@@ -677,11 +677,11 @@ class _ManyToOne_Rev(property):
 
 # --- Many-to-many relationship
 class _ManyToManyBase(property):
-    def __init__(self, ref, related_name=None, lnk=None, cls=None):
+    def __init__(self, ref, name=None, lnk=None, cls=None):
         self.ref = ref
         self.lnk = lnk
         self.cls = cls
-        self.related_name = related_name
+        self.name = name
 
     def _get_link_class(self):
         if isinstance(self._lnk, basestring):
@@ -696,7 +696,8 @@ class _ManyToManyBase(property):
 
 class ManyToManyField(_ManyToManyBase):
     def __init__(self, ref, related_name=None, lnk=None):
-        super(ManyToManyField, self).__init__(ref, related_name, lnk)
+        super(ManyToManyField, self).__init__(ref, lnk=lnk)
+        self.related_name = related_name
 
     def _called_in_modelmeta_init(self, cls, fld_name):
         # This method will be called in ModelMeta#__init__().
@@ -706,7 +707,7 @@ class ManyToManyField(_ManyToManyBase):
         self.name = fld_name
         if self._lnk is None: self._lnk = self.generate_link_class()
         self.related_name = self.related_name or "%s_set" % cls.__name__.lower()
-        setattr(self.ref, self.related_name, _ManyToManyBase(cls, lnk=self._lnk, cls=self.ref))
+        setattr(self.ref, self.related_name, _ManyToManyBase(cls, name=self.related_name, lnk=self._lnk, cls=self.ref))
 
     def generate_link_class(self):
         name = "%s%sLink" % (self.cls.__name__, self.ref.__name__)
@@ -714,6 +715,7 @@ class ManyToManyField(_ManyToManyBase):
             self.cls.__name__.lower(): ManyToOne(self.cls, on_delete="CASCADE", on_update="CASCADE"),
             self.ref.__name__.lower(): ManyToOne(self.ref, on_delete="CASCADE", on_update="CASCADE"),
         }
+        cls = type(name, (Model,), h)
         return type(name, (Model,), h)
 
 # --- QuerySet
