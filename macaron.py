@@ -47,6 +47,7 @@ _m = None               # Macaron object
 _pre_field_order = []   # Created order of Model field object
 history = None          #: Returns history of SQL execution. You can get history like a list (index:0 is latest).
 SQL_TRACE_OUT = None    # In case of tracing SQL and parameters on CursorWrapper, set output stream(ex. sys.stderr)
+sqlite_version_info = sqlite3.sqlite_version_info
 
 #_callbacks_when_connect = [] # TEMPORARY BUG FIX: see the comment of ModelMeta.__init__()
 
