@@ -111,7 +111,10 @@ def execute(*args, **kw):
 
 def bake():     _m.connection["default"].commit()   # Commits
 def rollback(): _m.connection["default"].rollback() # Rollback
-def cleanup():  _m = None   # Closes database and tidies up Macaron
+def cleanup():
+    """Closes database and tidies up the Macaron object"""
+    _m.connection["default"].close()
+    globals()["_m"] = None
 
 def create_table(cls, cascade=False):
     """Create table from Model class"""
