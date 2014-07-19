@@ -727,9 +727,10 @@ class QuerySet(object):
             self.clauses = {"type":"SELECT", "joins":[], "where":[], "order_by":[], "values":[], "distinct":False}
             self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
             self.factory = self.cls._factory
+            self.clauses["select_fields"] = '"%s".*' % self.cls.__dict__["_meta"].table_name
+        self.parent = parent
         self.clauses["offset"] = 0
         self.clauses["limit"] = 0
-        self.clauses["select_fields"] = "*"
         self._initialize_cursor()
 
     def _initialize_cursor(self):

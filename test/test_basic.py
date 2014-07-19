@@ -148,7 +148,7 @@ class TestMacaron(unittest.TestCase):
 
         # sorry, I can't imagene what situation the distinct is used in.
         qs = Member.all().distinct()
-        self.assertEqual(qs.sql, 'SELECT DISTINCT * FROM "member"')
+        self.assertEqual(qs.sql, 'SELECT DISTINCT "member".* FROM "member"')
 
 if __name__ == "__main__":
     import os
