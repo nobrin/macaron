@@ -616,11 +616,13 @@ class ManyToOne(Field):
         if getattr(owner, self.fkey) is None: return None
         reftbl = self.ref._meta.table_name
         clstbl = cls._meta.table_name
-        sql = 'SELECT "%s".* FROM "%s" LEFT JOIN "%s" ON "%s" = "%s"."%s" WHERE "%s"."%s" = ?' \
-            % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
-               clstbl, cls._meta.primary_key.name)
+#        sql = 'SELECT "%s".* FROM "%s" LEFT JOIN "%s" ON "%s" = "%s"."%s" WHERE "%s"."%s" = ?' \
+#            % (reftbl, clstbl, reftbl, self.fkey, reftbl, self.ref_key, \
+#               clstbl, cls._meta.primary_key.name)
+        sql = 'SELECT * FROM "%s" WHERE "%s" = ?' % (reftbl, self.ref_key)
         cur = cls._meta._conn.cursor()
-        cur = cur.execute(sql, [owner.pk])
+#        cur = cur.execute(sql, [owner.pk])
+        cur = cur.execute(sql, [getattr(owner, self.fkey)])
         row = cur.fetchone()
         if cur.fetchone(): raise NotUniqueForeignKey("Reference key '%s.%s' is not unique." % (reftbl, self.ref_key))
         return self.ref._factory(cur, row)
@@ -858,9 +860,6 @@ class QuerySet(object):
         self._execute()
 
     def distinct(self):
-        """EXPERIMENTAL:
-        I don't know what situation this distinct method is used in.
-        """
         newset = self.__class__(self)
         newset.clauses["distinct"] = True
         return newset
