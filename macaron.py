@@ -534,8 +534,8 @@ class IntegerField(FloatField):
     TYPE_NAMES = ("INT",)
     SQL_TYPE = "INTEGER"
 
-    def initialize_after_meta(self):
-        if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
+#    def initialize_after_meta(self):
+#        if re.match(r"^INTEGER$", self.type, re.I) and self.is_primary_key: self.null = True
 
     def cast(self, value):
         if value == None: return None
