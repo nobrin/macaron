@@ -767,10 +767,32 @@ class QuerySet(object):
 
     def _convert_order_fields(self, fields):
         """Convert order ['-id', 'name'] to ['"id" DESC', '"name"']"""
+        def conv(m):
+            fldname = m.group(1)
+            res = '"%s"."%s"' % (m.group(1), m.group(2))
+            fld = self.cls.__dict__.get(fldname, "None")
+            if not fld: return res
+#            h = {"as":fldname, "me":self.cls._meta.table_name, "me_key":self.cls._meta.primary_key.name}
+            h = {"as":fldname, "me":self.cls._meta.table_name, "me_key":fld.fkey}
+            if isinstance(fld, ManyToOne):
+                h["ref"] = fld.ref._meta.table_name
+                h["refkey"] = fld.ref_key
+            elif isinstance(fld, _ManyToOne_Rev):
+                self.clauses["distinct"] = True
+                h["ref"] = fld.rev._meta.table_name
+                h["refkey"] = fld.rev_fkey
+            else: return res
+            fmt = 'INNER JOIN "%(ref)s" AS "%(as)s" ON "%(me)s"."%(me_key)s" = "%(as)s"."%(refkey)s"'
+            self.clauses["joins"].append(fmt % h)
+            return res
+
         res = []
         for n in fields:
-            if n.startswith("-"): res.append(re.sub(r"^-(.+)$", r'"\1" DESC', n))
-            else: res.append('"%s"' % n)
+            desc = ""
+            if n.startswith("-"): n, desc = n[1:], " DESC"
+            if re.match(r"(\w+)\.(\w+)", n): n = re.sub(r"(\w+)\.(\w+)", conv, n)
+            else: n = '"%s"' % n
+            res.append('%s%s' % (n, desc))
         return res
 
     def __iter__(self):
@@ -845,7 +867,7 @@ class QuerySet(object):
     def order_by(self, *args):
         newset = self.__class__(self)
 #        newset.clauses["order_by"] += [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
-        newset.clauses["order_by"] += self._convert_order_fields(args)
+        newset.clauses["order_by"] += newset._convert_order_fields(args)
         return newset
 
     def __getitem__(self, index):
