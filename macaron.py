@@ -1008,9 +1008,13 @@ class Model(object):
         self._data = {}
         for fld in self.__class__._meta.fields: self._data[fld.name] = fld.default
         for k in kw.keys():
-            if k not in self.__class__._meta.fields.keys():
-                ValueError("Invalid column name '%s'." % k)
+            if (k not in self.__class__._meta.fields.keys()) \
+                    and not isinstance(self.__class__.__dict__[k], Field):
+                raise ValueError("Invalid column name '%s'." % k)
             setattr(self, k, kw[k])
+        self._orig_pk = self.pk # Preserve original primary key value for modifing key value
+
+    def __eq__(self, other): return self.pk == other.pk
 
     def get_key_value(self):
         """Getting value of primary key field"""
@@ -1020,10 +1024,18 @@ class Model(object):
     @classmethod
     def _factory(cls, cur, row):
         """Convert raw values to object"""
-        h = dict([[d[0], row[i]] for i, d in enumerate(cur.description)])
+        h1 = dict([[d[0], row[i]] for i, d in enumerate(cur.description)])
+        h2 = {} # for create a new model object
         for fld in cls._meta.fields:
-            h[fld.name] = fld.to_object(sqlite3.Row(cur, row), h[fld.name])
-        return cls(**h)
+            h2[fld.name] = fld.to_object(sqlite3.Row(cur, row), h1[fld.name])
+        return cls(**h2)
+
+    @classmethod
+    def select_from(cls, sql, params):
+        objs = []
+        cur = execute(sql, params)
+        for row in cur.fetchall(): objs.append(cls._factory(cur, row))
+        return objs
 
     @classmethod
     def get(cls, *args, **kw): return QuerySet(cls).get(*args, **kw)
@@ -1058,7 +1070,7 @@ class Model(object):
         cls = self.__class__
         names = []
         for fld in cls._meta.fields:
-            if fld.is_primary_key: continue
+#            if fld.is_primary_key: continue
             names.append(fld.name)
         holder = ", ".join(['"%s" = ?' % n for n in names])
         Model._before_before_store(self, "set", AtSave) # set value
@@ -1067,7 +1079,7 @@ class Model(object):
         Model._before_before_store(self, "to_database", Field)  # convert object to database
         values = [getattr(self, n) for n in names]
         sql = 'UPDATE "%s" SET %s WHERE "%s" = ?' % (cls._meta.table_name, holder, cls._meta.primary_key.name)
-        cls._save_and_update_object(self, sql, values + [self.pk])
+        cls._save_and_update_object(self, sql, values + [self._orig_pk]) # '_orig_pk' is preserved key value (see __init__)
         self.after_save()
 
     @staticmethod
@@ -1078,6 +1090,7 @@ class Model(object):
         else: current_id = obj.pk
         newobj = cls.get(current_id)
         for fld in cls._meta.fields: setattr(obj, fld.name, getattr(newobj, fld.name))
+        obj._orig_pk = obj.pk
 
     def delete(self):
         """Deleting the record"""
