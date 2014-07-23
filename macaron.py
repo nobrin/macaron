@@ -737,15 +737,17 @@ class QuerySet(object):
             self.cls = parent.cls
             self.clauses = copy.deepcopy(parent.clauses)
             self.factory = parent.factory   # Factory method converting record to object
+            self.wrapper_clause = parent.wrapper_clause
         else:
             self.cls = parent
             self.clauses = {"type":"SELECT", "joins":[], "where":[], "order_by":[], "values":[], "distinct":False}
+            self.clauses["offset"] = None
+            self.clauses["limit"] = None
             self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
             self.factory = self.cls._factory
             self.clauses["select_fields"] = '"%s".*' % self.cls.__dict__["_meta"].table_name
+            self.wrapper_clause = None
         self.parent = parent
-        self.clauses["offset"] = 0
-        self.clauses["limit"] = 0
         self._initialize_cursor()
 
     def _initialize_cursor(self):
@@ -771,9 +773,14 @@ class QuerySet(object):
         if self.clauses["type"] == "SELECT":
             if len(self.clauses["order_by"]):
                 sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
-            if self.clauses["limit"]: sqls.append("LIMIT %d" % self.clauses["limit"])
-            if self.clauses["offset"]: sqls.append("OFFSET %d" % self.clauses["offset"])
+            if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
+            if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
+
+        if self.wrapper_clause:
+            return self.wrapper_clause % "\n".join(sqls)
+
         return "\n".join(sqls)
+
     sql = property(_generate_sql)   #: Generating SQL
 
     def _execute(self):
@@ -943,17 +950,30 @@ class QuerySet(object):
         newset.clauses["order_by"] += newset._convert_order_fields(args)
         return newset
 
+    def limit(self, limit):
+        newset = self.__class__(self)
+        newset.clauses["limit"] = int(limit)
+        return newset
+
+    def offset(self, offset):
+        newset = self.__class__(self)
+        newset.clauses["offset"] = int(offset)
+        newset.clauses["limit"] = -1    # When only offset is set, SQL syntax error is caused.
+        return newset
+
     def __getitem__(self, index):
         newset = self.__class__(self)
         if isinstance(index, slice):
-            start, stop = index.start or 0, index.stop or 0
-            newset.clauses["offset"] = start
-            if stop:
-                if stop <= start:
+            if index.step != 1 and index.step is not None:
+                raise ValueError("Step of slice except 1 is not supported.")
+            start, stop = index.start or 0, index.stop
+            newset.clauses["offset"] = newset.clauses["offset"] + start
+            if stop is None:
+                newset.clauses["limit"] = -1
+            else:
+                if stop < start:
                     raise ValueError("Slice stop must be larger than start value.[start:%d,stop:%d]" % (start, stop))
                 else: newset.clauses["limit"] = stop - start
-            else:
-                newset.clauses["limit"] = 0
             return newset
         elif self._index >= index: return self._cache[index]
         for obj in self:
@@ -961,9 +981,17 @@ class QuerySet(object):
 
     # Aggregation methods
     def aggregate(self, agg):
+        """Aggregation
+
+        Aggregate use 'wrapper_clause':
+            SELECT COUNT("*") FROM (
+            [original clause]
+            )
+        """
         def single_value(cur, row): return row[0]
         newset = self.__class__(self)
-        newset.clauses["select_fields"] = '%s("%s")' % (agg.name, agg.field_name)
+#        newset.clauses["select_fields"] = '%s("%s")' % (agg.name, agg.field_name)
+        newset.wrapper_clause = 'SELECT %s("%s") FROM (\n%%s\n)' % (agg.name, agg.field_name)
         newset.factory = single_value   # Change factory method for single value
         return newset.next()
 

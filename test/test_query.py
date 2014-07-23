@@ -28,6 +28,7 @@ class TestQueryOperation(unittest.TestCase):
         macaron.create_link_tables(Song)
 
     def tearDown(self):
+        macaron.SQL_TRACE_OUT = None
         macaron.bake()
         macaron.cleanup()
 
@@ -66,3 +67,19 @@ class TestQueryOperation(unittest.TestCase):
         songs = azusa.songs
         self.assertEqual(songs.count(), 1)
         self.assertEqual(songs[0].name, "Utauyo!! MIRACLE")
+
+    def testLimitOffset(self):
+        team = Team.create(name="Houkago Tea Time")
+        for name in self.names:
+            team.members.append(first_name=name[0], last_name=name[1], part=name[2], age=name[3])
+
+        # OFFSET 2
+        qs = Member.all().offset(2).order_by("id")
+        self.assertEqual(qs[0].first_name, "Yui")
+        self.assertEqual(qs[1].first_name, "Tsumugi")
+        self.assertEqual(qs.count(), 3)
+
+        # LIMIT 1 OFFSET 2
+        qs = Member.all().offset(2).limit(1).order_by("id")
+        self.assertEqual(qs[0].first_name, "Yui")
+        self.assertEqual(qs.count(), 1)
