@@ -967,7 +967,7 @@ class QuerySet(object):
             if index.step != 1 and index.step is not None:
                 raise ValueError("Step of slice except 1 is not supported.")
             start, stop = index.start or 0, index.stop
-            newset.clauses["offset"] = newset.clauses["offset"] + start
+            newset.clauses["offset"] = (newset.clauses["offset"] or 0) + start
             if stop is None:
                 newset.clauses["limit"] = -1
             else:
