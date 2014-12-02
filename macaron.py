@@ -1048,6 +1048,15 @@ class ManyToManySet(QuerySet):
         obj = self.ref.create(**kw)
         return self.append(obj)
 
+    def pop(self, refobj):
+        """Pop many-to-many link object"""
+        h = {
+            "%s_id" % self.cls.__name__.lower(): self.parent.pk,
+            "%s_id" % self.ref.__name__.lower(): refobj.pk,
+        }
+        self.lnk.select(**h).delete()
+        return refobj
+
     def clear(self):
         self.lnk.select(**{"%s_id" % self.cls.__name__.lower(): self.parent.pk}).delete()
 
