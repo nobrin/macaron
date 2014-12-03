@@ -840,99 +840,6 @@ class QuerySet(object):
         except StopIteration: return obj
         raise MultipleObjectsReturned("The 'get()' requires single result.")
 
-    def o_select(self, *args, **kw):
-        newset = self.__class__(self)
-        if len(args) == 1:
-            newset.clauses["where"].append(args[0])
-        elif len(args) == 2:
-            newset.clauses["where"].append(args[0])
-            if isinstance(args[1], (list, tuple)): newset.clauses["values"] += list(args[1])
-            else: newset.clauses["values"].append(args[1])
-        elif len(args) > 2:
-            raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
-
-        cls = self.cls
-        for k, v in kw.items():
-            items = k.split("__")
-            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
-            if len(items) == 2:
-                if items[1] == "in": wh = '"%s" IN (%s)' % (items[0], ",".join(["?"] * len(v)))
-            else:
-                if not cls.__dict__.has_key(k):
-                    raise RuntimeError("Field '%s' is not in model '%s'." % (k, cls.__name__))
-                fld = cls.__dict__[k]
-                if isinstance(fld, ManyToOne):  # ManyToOne field
-                    if not isinstance(v, fld.ref):
-                        msg = "Field '%s.%s' is related with '%s', not '%s'."
-                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
-                    k, v = fld.fkey, v.pk
-                wh = '"%s" = ?' % k
-            newset.clauses["where"].append(wh)
-            if isinstance(v, (list, tuple)): newset.clauses["values"] += list(v)
-            else: newset.clauses["values"].append(v)
-        return newset
-
-    def o_select(self, *args, **kw):
-        newset = self.__class__(self)
-        if len(args) == 1:
-            newset.clauses["where"].append(args[0])
-        elif len(args) == 2:
-            newset.clauses["where"].append(args[0])
-            if isinstance(args[1], (list, tuple)): newset.clauses["values"] += list(args[1])
-            else: newset.clauses["values"].append(args[1])
-        elif len(args) > 2:
-            raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
-
-        # Parsing inline functions
-        def _in(k, v): return ('"%s" IN (%s)' % (k, ",".join(["?"] * len(v))), v)
-        f = {"in":_in}
-        def _convert(name, param):
-            fld = self.cls.__dict__[name]
-            if isinstance(fld, ManyToOne):
-                fullname = '%s"."%s' % (self.cls._meta.table_name, fld.fkey)
-                if isinstance(param, (list, tuple)):
-                    if filter(lambda o:not isinstance(o, fld.ref), param):
-                        msg = "Field '%s.%s' is related with '%s', not '%s'."
-                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
-                    lst = [o.pk for o in param]
-                    k, v = fullname, lst
-                elif param is None or param is NotNull:
-                    k, v = fullname, param
-                elif not isinstance(param, fld.ref):
-                    msg = "Field '%s.%s' is related with '%s', not '%s'."
-                    raise RuntimeError(msg % (self.cls.__name__, name, fld.ref.__name__, type(param).__name__))
-                    k, v = fullname, param.pk
-                else:
-                    k, v = fullname, param.pk
-            else:
-                if isinstance(self, ManyToManySet): fullname = '%s"."%s' % (self.ref._meta.table_name, name)
-                else:
-                    # CAUTION[2012-07-11]: This parameter may cause "ambigous column name". Watch it!!
-                    fullname = name
-                if isinstance(param, datetime):
-                    if isinstance(fld, TimestampField): k, v = fullname, param.strftime("%Y-%m-%d %H:%M:%S")
-                    elif isinstance(fld, DateField): k, v = fullname, param.strftime("%Y-%m-%d")
-                    elif isinstance(fld, TimeField): k, v = fullname, param.strftime("%H:%M:%S")
-                    else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(param).__name__))
-                else:
-                    k, v = fullname, param
-            if v is None: return (k, '"%s" IS NULL' % k, [])
-            elif v is NotNull: return (k, '"%s" IS NOT NULL' % k, [])
-            elif isinstance(v, Like): return (k, '"%s" LIKE ?' % k, v.likestr)
-            return (k, '"%s" = ?' % k, v)
-
-        # Parse keywords
-        for k, v in kw.items():
-            items = k.split("__")
-            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
-            key, wh, p = _convert(items[0], v)
-            if len(items) == 2: wh, p = f[items[1]](key, p)
-            newset.clauses["where"].append(wh)
-            if isinstance(p, (list, tuple)): newset.clauses["values"] += list(p)
-            else: newset.clauses["values"].append(p)
-        return newset
-
-
     def select(self, *args, **kw):
         newset = self.__class__(self)
         if len(args) == 1:
@@ -957,20 +864,20 @@ class QuerySet(object):
             items = k.split("__")
             while items:
                 item = items.pop(0)
-                print "CURMDL", curmdl, "ITEM", item
                 fld = curmdl.__dict__[item]
                 if isinstance(fld, ManyToOne):
                     # ManyToOne field
-                    reftbl, refkey = fld.ref._meta.table_name, fld.ref_key
-#                    clstbl, clskey = curmdl._meta.table_name, fld.fkey
-                    clstbl, clskey = curname, fld.fkey
-                    fldname = "%s.%s" % (curname, item)
+                    h = {
+                        "reftbl": fld.ref._meta.table_name,
+                        "refkey": fld.ref_key,
+                        "clstbl": curname,
+                        "clskey": fld.fkey,
+                        "fldname": "%s.%s" % (curname, item)
+                    }
                     tmpl = 'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s"."%(refkey)s"'
-                    newset.clauses["joins"].append(
-                        tmpl % {"reftbl":reftbl, "fldname":fldname, "clstbl":clstbl, "clskey":clskey, "refkey":refkey}
-                    )
+                    newset.clauses["joins"].append(tmpl % h)
                     curmdl = fld.ref
-                    curname = fldname
+                    curname = h["fldname"]
                 elif isinstance(fld, _ManyToOne_Rev):
                     # ManyToOne reverse field
                     h = {
@@ -988,7 +895,6 @@ class QuerySet(object):
                     # ManyToMany field
                     ref, lnk = fld.ref, fld.lnk
                     h = {
-#                        "clstbl": curmdl._meta.table_name,
                         "clstbl": curname,
                         "clskey": curmdl._meta.primary_key.name,
                         "reftbl": ref._meta.table_name,
@@ -1045,60 +951,8 @@ class QuerySet(object):
                         else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(v).__name__))
                     newset.clauses["where"].append('"%s"."%s" = ?' % (curname, item))
                     newset.clauses["values"].append(v)
+
         return newset
-
-
-        # Parsing inline functions
-        def _in(k, v): return ('"%s" IN (%s)' % (k, ",".join(["?"] * len(v))), v)
-        f = {"in":_in}
-        def _convert(name, param):
-            fld = self.cls.__dict__[name]
-            if isinstance(fld, ManyToOne):
-                fullname = '%s"."%s' % (self.cls._meta.table_name, fld.fkey)
-                if isinstance(param, (list, tuple)):
-                    if filter(lambda o:not isinstance(o, fld.ref), param):
-                        msg = "Field '%s.%s' is related with '%s', not '%s'."
-                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
-                    lst = [o.pk for o in param]
-                    k, v = fullname, lst
-                elif param is None or param is NotNull:
-                    k, v = fullname, param
-                elif not isinstance(param, fld.ref):
-                    msg = "Field '%s.%s' is related with '%s', not '%s'."
-                    raise RuntimeError(msg % (self.cls.__name__, name, fld.ref.__name__, type(param).__name__))
-                    k, v = fullname, param.pk
-                else:
-                    k, v = fullname, param.pk
-            else:
-                if isinstance(self, ManyToManySet): fullname = '%s"."%s' % (self.ref._meta.table_name, name)
-                else:
-                    # CAUTION[2012-07-11]: This parameter may cause "ambigous column name". Watch it!!
-                    fullname = name
-                if isinstance(param, datetime):
-                    if isinstance(fld, TimestampField): k, v = fullname, param.strftime("%Y-%m-%d %H:%M:%S")
-                    elif isinstance(fld, DateField): k, v = fullname, param.strftime("%Y-%m-%d")
-                    elif isinstance(fld, TimeField): k, v = fullname, param.strftime("%H:%M:%S")
-                    else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(param).__name__))
-                else:
-                    k, v = fullname, param
-            if v is None: return (k, '"%s" IS NULL' % k, [])
-            elif v is NotNull: return (k, '"%s" IS NOT NULL' % k, [])
-            elif isinstance(v, Like): return (k, '"%s" LIKE ?' % k, v.likestr)
-            return (k, '"%s" = ?' % k, v)
-
-        # Parse keywords
-        for k, v in kw.items():
-            items = k.split("__")
-            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
-            key, wh, p = _convert(items[0], v)
-            if len(items) == 2: wh, p = f[items[1]](key, p)
-            newset.clauses["where"].append(wh)
-            if isinstance(p, (list, tuple)): newset.clauses["values"] += list(p)
-            else: newset.clauses["values"].append(p)
-        return newset
-
-
-
 
     def all(self):
         return self.select()
