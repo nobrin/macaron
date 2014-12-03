@@ -757,24 +757,21 @@ class QuerySet(object):
         self._cache = []    # cache list
 
     def _generate_sql(self):
+        # To delete: wrapper_clause is set to DELETE...
         if self.clauses["distinct"]: distinct = "DISTINCT "
         else: distinct = ""
 
-        if self.clauses["type"] == "DELETE":
-            sqls = ['DELETE FROM "%s"' % self.cls._meta.table_name]
-        else:
-            sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+        sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
 
         if len(self.clauses["joins"]): sqls += self.clauses["joins"]
 
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
 
-        if self.clauses["type"] == "SELECT":
-            if len(self.clauses["order_by"]):
-                sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
-            if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
-            if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
+        if len(self.clauses["order_by"]):
+            sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
+        if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
+        if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
 
         if self.wrapper_clause:
             return self.wrapper_clause % "\n".join(sqls)
@@ -959,6 +956,8 @@ class QuerySet(object):
 
     def delete(self):
         self.clauses["type"] = "DELETE"
+        h = {"tbl": self.cls._meta.table_name, "pk": self.cls._meta.primary_key.name}
+        self.wrapper_clause = 'DELETE FROM "%(tbl)s" WHERE "%(pk)s" IN (SELECT "%(pk)s" FROM (\n%%s\n))' % h
         self._execute()
 
     def distinct(self):

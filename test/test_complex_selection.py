@@ -112,6 +112,16 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
+    def test_delete_with_m2m(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
+        sql += 'WHERE ("member.movies"."title" IN (?))'
+        Member.select(movies__title__in=["NewStage2"]).delete()
+        #self.assertEqual(qs.sql, sql)
+        #self.assertEqual(qs.count(), 1)
+        #for rec in qs: self.assertEqual(rec.curename, "Happy")
+
     def test_selection_with_m2m_deeply(self):
         sql  = 'SELECT "group".* FROM "group"\n'
         sql += 'INNER JOIN "member" AS "group.mymembers" ON "group"."id" = "group.mymembers"."mygroup_id"\n'
