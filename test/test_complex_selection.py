@@ -14,7 +14,7 @@ class Member(macaron.Model):
     curename = macaron.CharField(max_length=30)
     mygroup  = macaron.ManyToOne(Group, related_name="mymembers")
     subgroup = macaron.ManyToOne(Group, related_name="submembers")
-    movies   = macaron.ManyToManyField(Movie, related_name="members")
+    movies   = macaron.ManyToMany(Movie, related_name="members")
     joined   = macaron.DateField()
 
 class SubTitle(macaron.Model):

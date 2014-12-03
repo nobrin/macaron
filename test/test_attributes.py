@@ -147,7 +147,7 @@ class TestClassAttributes(unittest.TestCase):
 
         # ManyToManyField in Song side
         fld1 = Song.__dict__["members"]
-        self.assertEqual(type(fld1), macaron.ManyToManyField)
+        self.assertEqual(type(fld1), macaron.ManyToMany)
         self.assertEqual(fld1.name, "members")
         self.assertEqual(fld1.related_name, "songs")
         self.assertEqual(fld1.cls, Song)
@@ -159,7 +159,7 @@ class TestClassAttributes(unittest.TestCase):
         for fld in Song._meta.fields: self.assert_(fld.name in FLDS)
 
         # Member class
-        # ManyToManyField in Member side
+        # ManyToMany in Member side
         fld2 = Member.__dict__["songs"]
         self.assertEqual(type(fld2), macaron._ManyToManyBase)
         self.assertEqual(fld2.name, "songs")

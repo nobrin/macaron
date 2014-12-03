@@ -173,7 +173,7 @@ def create_table(cls, cascade=False, link_tables=True):
 
 def create_link_tables(cls):
     cdic = cls.__dict__ # for direct access to property objects
-    for k, fld in filter(lambda (k, v): isinstance(v, ManyToManyField), cdic.items()):
+    for k, fld in filter(lambda (k, v): isinstance(v, ManyToMany), cdic.items()):
         create_table(fld.lnk)
 
 # --- Classes
@@ -708,9 +708,9 @@ class _ManyToManyBase(property):
         qs = cls.select('"%s"."%s"=?' % (cls._meta.table_name, cls._meta.primary_key.name), [owner.pk])
         return ManyToManySet(qs, owner, self.ref, self.lnk)
 
-class ManyToManyField(_ManyToManyBase):
+class ManyToMany(_ManyToManyBase):
     def __init__(self, ref, related_name=None, lnk=None):
-        super(ManyToManyField, self).__init__(ref, lnk=lnk)
+        super(ManyToMany, self).__init__(ref, lnk=lnk)
         self.related_name = related_name
 
     def _called_in_modelmeta_init(self, cls, fld_name):
@@ -891,7 +891,7 @@ class QuerySet(object):
                     newset.clauses["joins"].append(tmpl % h)
                     curmdl = fld.rev
                     curname = h["fldname"]
-                elif isinstance(fld, ManyToManyField):
+                elif isinstance(fld, ManyToMany):
                     # ManyToMany field
                     ref, lnk = fld.ref, fld.lnk
                     h = {
@@ -1110,7 +1110,7 @@ class ModelMeta(type):
 
         has_primary_key = False
         for k in dict.keys():
-            if isinstance(dict[k], ManyToManyField): dict[k]._called_in_modelmeta_init(cls, k)
+            if isinstance(dict[k], ManyToMany): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], ManyToOne): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
             if isinstance(dict[k], Field) and dict[k].is_primary_key: has_primary_key = True
