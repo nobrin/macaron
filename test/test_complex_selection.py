@@ -29,7 +29,6 @@ class ComplexSelectionTestCase(unittest.TestCase):
         macaron.create_table(Movie)
         macaron.create_table(Member)
         macaron.create_table(SubTitle)
-        macaron.create_link_tables(Member)
 
         series1 = Series.create(name="Smile Precure")
         group1 = Group.create(name="Smile", series=series1)

@@ -25,7 +25,6 @@ class TestQueryOperation(unittest.TestCase):
         macaron.create_table(Team)
         macaron.create_table(Member)
         macaron.create_table(Song)
-        macaron.create_link_tables(Song)
 
     def tearDown(self):
         macaron.SQL_TRACE_OUT = None

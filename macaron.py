@@ -116,7 +116,7 @@ def cleanup():
     _m.connection["default"].close()
     globals()["_m"] = None
 
-def create_table(cls, cascade=False):
+def create_table(cls, cascade=False, link_tables=True):
     """Create table from Model class"""
     if not issubclass(cls, Model): raise TypeError("The first arg must be Model class, not '%s'." % cls.__name__)
 
@@ -168,6 +168,9 @@ def create_table(cls, cascade=False):
     execute(sql)
     _m.connection["default"].cache_table_info(cdic["_meta"].table_name, warn=False)
 
+    if link_tables:
+        create_link_tables(cls)
+
 def create_link_tables(cls):
     cdic = cls.__dict__ # for direct access to property objects
     for k, fld in filter(lambda (k, v): isinstance(v, ManyToManyField), cdic.items()):
@@ -175,7 +178,7 @@ def create_link_tables(cls):
 
 # --- Classes
 class Macaron(object):
-    """Macaron controller class. Do not instance this class by user."""
+    """Macaron controller class. Do not instantiate this class by user."""
     def __init__(self):
         #: ``dict`` object holds :class:`sqlite3.Connection`
         self.connection = {}
