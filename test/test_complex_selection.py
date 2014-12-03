@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime
 import macaron
 
-class Series(macaron.Model): name = macaron.CharField(max_length=20)
+class Series(macaron.Model): name = macaron.CharField(max_length=30)
 class Movie(macaron.Model): title = macaron.CharField(max_length=20)
 
 class Group(macaron.Model):
@@ -31,13 +31,21 @@ class ComplexSelectionTestCase(unittest.TestCase):
         macaron.create_table(SubTitle)
         macaron.create_link_tables(Member)
 
-        series = Series.create(name="Smile Precure")
-        group1 = Group.create(name="Smile", series=series)
-        group2 = Group.create(name="Pink", series=series)
-        member = Member.create(curename="Happy", mygroup=group1, subgroup=group2, joined=datetime(2012, 2, 6))
-        movie = Movie.create(title="NewStage2")
-        subtitle = SubTitle.create(title="Mirai no tomodachi", movie=movie)
-        member.movies.append(movie)
+        series1 = Series.create(name="Smile Precure")
+        group1 = Group.create(name="Smile", series=series1)
+        group2 = Group.create(name="Pink", series=series1)
+        member1 = Member.create(curename="Happy", mygroup=group1, subgroup=group2, joined=datetime(2012, 2, 6))
+        movie1 = Movie.create(title="NewStage")
+        subtitle = SubTitle.create(title="Mirai no tomodachi", movie=movie1)
+        member1.movies.append(movie1)
+
+        series2 = Series.create(name="Happiness Charge Precure")
+        group3 = Group.create(name="Happiness Charge", series=series2)
+        group4 = Group.create(name="Purple", series=series2)
+        member2 = Member.create(curename="Fortune", mygroup=group3, subgroup=group4, joined=datetime(2014, 2, 9))
+        movie2 = Movie.create(title="NewStage2")
+        subtitle2 = SubTitle.create(title="Eien no tomodachi", movie=movie2)
+        member2.movies.append(movie2)
 
     def tearDown(self):
         macaron.bake()
@@ -107,7 +115,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
         sql += 'WHERE ("member.movies"."title" IN (?))'
-        qs = Member.select(movies__title__in=["NewStage2"])
+        qs = Member.select(movies__title__in=["NewStage"])
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.curename, "Happy")
@@ -117,10 +125,11 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
         sql += 'WHERE ("member.movies"."title" IN (?))'
-        Member.select(movies__title__in=["NewStage2"]).delete()
-        #self.assertEqual(qs.sql, sql)
-        #self.assertEqual(qs.count(), 1)
-        #for rec in qs: self.assertEqual(rec.curename, "Happy")
+        Member.select(movies__title__in=["NewStage"]).delete()
+
+        qs = Member.all()
+        self.assertEqual(qs.count(), 1) # Only Fortune is remained
+        for rec in qs: self.assertEqual(rec.curename, "Fortune")
 
     def test_selection_with_m2m_deeply(self):
         sql  = 'SELECT "group".* FROM "group"\n'
@@ -128,7 +137,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql += 'INNER JOIN "membermovielink" AS "group.mymembers.movies.lnk" ON "group.mymembers"."id" = "group.mymembers.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "group.mymembers.movies" ON "group.mymembers.movies.lnk"."movie_id" = "group.mymembers.movies"."id"\n'
         sql += 'WHERE ("group.mymembers.movies"."title" IN (?))'
-        qs = Group.select(mymembers__movies__title__in=["NewStage2"])
+        qs = Group.select(mymembers__movies__title__in=["NewStage"])
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.name, "Smile")
