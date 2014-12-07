@@ -1254,32 +1254,28 @@ class Count(AggregateFunction): name = "COUNT"
 
 # --- Converter for operators
 class OpConverter(object):
+    CONV = {
+        "lt": "<", "le": "<=", "ge": ">=", "gt": ">",
+        "like": "LIKE", "glob": "GLOB", "regexp": "REGEXP",
+    }
     def __init__(self, tblname): self.tblname = tblname
-    def sqlname(self, fldname): return '"%s"."%s"' % (self.tblname, fldname)
-    def get_clause(self, op, fld, value):
-        if op: sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
-        else: sqltmpl, value = self._convert(fld, value)
-        return sqltmpl % self.sqlname(fld.name), value
 
-    def _OP_in(self, value):   return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
-    def _OP_lt(self, value):   return "%s < ?" , value
-    def _OP_le(self, value):   return "%s <= ?", value
-    def _OP_ge(self, value):   return "%s >= ?", value
-    def _OP_gt(self, value):   return "%s > ?" , value
-    def _OP_like(self, value): return "%s LIKE ?", value
+    def get_clause(self, op, fld, value):
+        if op:
+            if hasattr(self, "_OP_%s" % op): sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
+            elif self.CONV.has_key(op): sqltmpl, value = "%%s %s ?", value
+            else: raise ValueError("Operator '%s' is not supported." % op)
+        else:
+            sqltmpl, value = self._convert(fld, value)
+        return sqltmpl % '"%s"."%s"' % (self.tblname, fld.name), value
+
+    def _OP_in(self, value): return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
 
     def _convert(self, fld, value):
         if value is None:           return "%s IS NULL", None
         if value is NotNull:        return "%s IS NOT NULL", None
         if isinstance(value, Like): return "%s LIKE ?", value.likestr
-
-        # Format datetime to string
-        if isinstance(value, datetime):
-            if isinstance(fld, TimestampField): value = value.strftime("%Y-%m-%d %H:%M:%S")
-            elif isinstance(fld, DateField):    value = value.strftime("%Y-%m-%d")
-            elif isinstance(fld, TimeField):    value = value.strftime("%H:%M:%S")
-            else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(v).__name__))
-        return "%s = ?", value
+        return "%s = ?", fld.to_database(None, value)
 
 # --- Plugin for Bottle web framework
 class MacaronPlugin(object):
