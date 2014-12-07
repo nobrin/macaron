@@ -620,6 +620,18 @@ class ManyToOne(Field):
         self.on_update = on_update
         _pre_field_order.append(self)
 
+    def set_query(self, query_set, tblname, name):
+        h = {
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref_key,
+            "clstbl": tblname,
+            "clskey": self.fkey,
+            "fldname": "%s.%s" % (tblname, name)
+        }
+        tmpl = 'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s"."%(refkey)s"'
+        query_set.clauses["joins"].append(tmpl % h)
+        return self.ref, h["fldname"]
+
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
         assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
@@ -679,6 +691,19 @@ class _ManyToOne_Rev(property):
         self.rev_fkey = rev_fkey    # Foreign key name of child
         assert self.rev_fkey, "Foreign key was not specified in ManyToOne#_called_in_modelmeta_init"
 
+    def set_query(self, query_set, tblname, name):
+        # Generate INNER JOIN-ed clause
+        h = {
+            "revtbl": self.rev._meta.table_name,
+            "revkey": self.rev_fkey,
+            "reftbl": tblname,
+            "refkey": self.ref_key,
+            "fldname": "%s.%s" % (tblname, name),
+        }
+        tmpl = 'INNER JOIN "%(revtbl)s" AS "%(fldname)s" ON "%(reftbl)s"."%(refkey)s" = "%(fldname)s"."%(revkey)s"'
+        query_set.clauses["joins"].append(tmpl % h)
+        return self.rev, h["fldname"]
+
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
         assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
@@ -712,6 +737,25 @@ class ManyToMany(_ManyToManyBase):
     def __init__(self, ref, related_name=None, lnk=None):
         super(ManyToMany, self).__init__(ref, lnk=lnk)
         self.related_name = related_name
+
+    def set_query(self, query_set, tblname, name):
+        h = {
+            "clstbl": tblname,
+            "clskey": self.cls._meta.primary_key.name,
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref._meta.primary_key.name,
+            "lnktbl": self.lnk._meta.table_name,
+            "fldname": "%s.%s" % (tblname, name),
+        }
+        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
+        h["lnkrefkey"] = "%s_id" % h["reftbl"]
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(lnktbl)s" AS "%(fldname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s.lnk"."%(lnkclskey)s"' % h
+        )
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
+        )
+        return self.ref, h["fldname"]
 
     def _called_in_modelmeta_init(self, cls, fld_name):
         # This method will be called in ModelMeta#__init__().
@@ -865,92 +909,25 @@ class QuerySet(object):
             while items:
                 item = items.pop(0)
                 fld = curmdl.__dict__[item]
-                if isinstance(fld, ManyToOne):
-                    # ManyToOne field
-                    h = {
-                        "reftbl": fld.ref._meta.table_name,
-                        "refkey": fld.ref_key,
-                        "clstbl": curname,
-                        "clskey": fld.fkey,
-                        "fldname": "%s.%s" % (curname, item)
-                    }
-                    tmpl = 'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s"."%(refkey)s"'
-                    newset.clauses["joins"].append(tmpl % h)
-                    curmdl = fld.ref
-                    curname = h["fldname"]
-                elif isinstance(fld, _ManyToOne_Rev):
-                    # ManyToOne reverse field
-                    h = {
-                        "revtbl": fld.rev._meta.table_name,
-                        "revkey": fld.rev_fkey,
-                        "reftbl": curname,
-                        "refkey": fld.ref_key,
-                        "fldname": "%s.%s" % (curname, item),
-                    }
-                    tmpl = 'INNER JOIN "%(revtbl)s" AS "%(fldname)s" ON "%(reftbl)s"."%(refkey)s" = "%(fldname)s"."%(revkey)s"'
-                    newset.clauses["joins"].append(tmpl % h)
-                    curmdl = fld.rev
-                    curname = h["fldname"]
-                elif isinstance(fld, ManyToMany):
-                    # ManyToMany field
-                    ref, lnk = fld.ref, fld.lnk
-                    h = {
-                        "clstbl": curname,
-                        "clskey": curmdl._meta.primary_key.name,
-                        "reftbl": ref._meta.table_name,
-                        "refkey": ref._meta.primary_key.name,
-                        "lnktbl": lnk._meta.table_name,
-                        "fldname": "%s.%s" % (curname, item),
-                    }
-                    h["lnkclskey"] = "%s_id" % curmdl._meta.table_name
-                    h["lnkrefkey"] = "%s_id" % h["reftbl"]
-                    newset.clauses["joins"].append(
-                        'INNER JOIN "%(lnktbl)s" AS "%(fldname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s.lnk"."%(lnkclskey)s"' % h
-                    )
-                    newset.clauses["joins"].append(
-                        'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
-                    )
-                    curmdl = fld.ref
-                    curname = h["fldname"]
+                if callable(getattr(fld, "set_query", None)):
+                    # Fields of ManyToOne, _ManyToOne_Rev, ManyToMany
+                    curmdl, curname = fld.set_query(newset, curname, item)
                 elif isinstance(fld, Field):
                     break
                 else:
                     raise RuntimeError("Invalid column name. '%s(%s)'" % (item, fld.__class__.__name__))
 
+            # Convert field name and value
             if len(items) >= 2:
                 raise RuntimeError("Invalid operand name. '%s'" % "__".join(items))
 
             # Parsing inline operator
-            FUNC = {
-                "in": lambda n, k, v: ('"%s"."%s" IN (%s)' % (n, k, ",".join(["?"] * len(v))), v),
-                "lt": lambda n, k, v: ('"%s"."%s" < ?'     % (n, k), v),
-                "le": lambda n, k, v: ('"%s"."%s" <= ?'    % (n, k), v),
-                "ge": lambda n, k, v: ('"%s"."%s" >= ?'    % (n, k), v),
-                "gt": lambda n, k, v: ('"%s"."%s" > ?'     % (n, k), v),
-            }
-            if items:
-                # There is an operator
-                whr, val = FUNC[items[0]](curname, item, v)
-                newset.clauses["where"].append(whr)
-                if isinstance(val, (list, tuple)): newset.clauses["values"] += list(val)
-                else: newset.clauses["values"].append(val)
-            else:
-                if v is None:
-                    newset.clauses["where"].append('"%s"."%s" IS NULL' % (curname, item))
-                elif v is NotNull:
-                    newset.clauses["where"].append('"%s"."%s" IS NOT NULL' % (curname, item))
-                elif isinstance(v, Like):
-                    newset.clauses["where"].append('"%s"."%s" LIKE ?')
-                    newset.clauses["values"].append(v.likestr)
-                else:
-                    if isinstance(v, datetime):
-                        # Format datetime to string
-                        if isinstance(fld, TimestampField): v = v.strftime("%Y-%m-%d %H:%M:%S")
-                        elif isinstance(fld, DateField):    v = v.strftime("%Y-%m-%d")
-                        elif isinstance(fld, TimeField):    v = v.strftime("%H:%M:%S")
-                        else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(v).__name__))
-                    newset.clauses["where"].append('"%s"."%s" = ?' % (curname, item))
-                    newset.clauses["values"].append(v)
+            opc = OpConverter(curname)
+            whr, prm = opc.get_clause(items[0] if items else None, fld, v)
+            newset.clauses["where"].append(whr)
+            if prm is not None:
+                if isinstance(prm, (list, tuple)): newset.clauses["values"] += list(prm)
+                else: newset.clauses["values"].append(prm)
 
         return newset
 
@@ -1274,6 +1251,35 @@ class Min(AggregateFunction):   name = "MIN"
 class Sum(AggregateFunction):   name = "SUM"
 class Total(AggregateFunction): name = "TOTAL"
 class Count(AggregateFunction): name = "COUNT"
+
+# --- Converter for operators
+class OpConverter(object):
+    def __init__(self, tblname): self.tblname = tblname
+    def sqlname(self, fldname): return '"%s"."%s"' % (self.tblname, fldname)
+    def get_clause(self, op, fld, value):
+        if op: sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
+        else: sqltmpl, value = self._convert(fld, value)
+        return sqltmpl % self.sqlname(fld.name), value
+
+    def _OP_in(self, value):   return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
+    def _OP_lt(self, value):   return "%s < ?" , value
+    def _OP_le(self, value):   return "%s <= ?", value
+    def _OP_ge(self, value):   return "%s >= ?", value
+    def _OP_gt(self, value):   return "%s > ?" , value
+    def _OP_like(self, value): return "%s LIKE ?", value
+
+    def _convert(self, fld, value):
+        if value is None:           return "%s IS NULL", None
+        if value is NotNull:        return "%s IS NOT NULL", None
+        if isinstance(value, Like): return "%s LIKE ?", value.likestr
+
+        # Format datetime to string
+        if isinstance(value, datetime):
+            if isinstance(fld, TimestampField): value = value.strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(fld, DateField):    value = value.strftime("%Y-%m-%d")
+            elif isinstance(fld, TimeField):    value = value.strftime("%H:%M:%S")
+            else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(v).__name__))
+        return "%s = ?", value
 
 # --- Plugin for Bottle web framework
 class MacaronPlugin(object):
