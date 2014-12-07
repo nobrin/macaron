@@ -26,4 +26,4 @@ class Member(macaron.Model):
 
 class Song(macaron.Model):
     name        = macaron.CharField(max_length=50)
-    members     = macaron.ManyToManyField(Member, related_name="songs")
+    members     = macaron.ManyToMany(Member, related_name="songs")

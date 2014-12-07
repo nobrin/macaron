@@ -116,7 +116,7 @@ def cleanup():
     _m.connection["default"].close()
     globals()["_m"] = None
 
-def create_table(cls, cascade=False):
+def create_table(cls, cascade=False, link_tables=True):
     """Create table from Model class"""
     if not issubclass(cls, Model): raise TypeError("The first arg must be Model class, not '%s'." % cls.__name__)
 
@@ -168,14 +168,17 @@ def create_table(cls, cascade=False):
     execute(sql)
     _m.connection["default"].cache_table_info(cdic["_meta"].table_name, warn=False)
 
+    if link_tables:
+        create_link_tables(cls)
+
 def create_link_tables(cls):
     cdic = cls.__dict__ # for direct access to property objects
-    for k, fld in filter(lambda (k, v): isinstance(v, ManyToManyField), cdic.items()):
+    for k, fld in filter(lambda (k, v): isinstance(v, ManyToMany), cdic.items()):
         create_table(fld.lnk)
 
 # --- Classes
 class Macaron(object):
-    """Macaron controller class. Do not instance this class by user."""
+    """Macaron controller class. Do not instantiate this class by user."""
     def __init__(self):
         #: ``dict`` object holds :class:`sqlite3.Connection`
         self.connection = {}
@@ -617,6 +620,18 @@ class ManyToOne(Field):
         self.on_update = on_update
         _pre_field_order.append(self)
 
+    def set_query(self, query_set, tblname, name):
+        h = {
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref_key,
+            "clstbl": tblname,
+            "clskey": self.fkey,
+            "fldname": "%s.%s" % (tblname, name)
+        }
+        tmpl = 'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s"."%(refkey)s"'
+        query_set.clauses["joins"].append(tmpl % h)
+        return self.ref, h["fldname"]
+
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
         assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
@@ -676,6 +691,19 @@ class _ManyToOne_Rev(property):
         self.rev_fkey = rev_fkey    # Foreign key name of child
         assert self.rev_fkey, "Foreign key was not specified in ManyToOne#_called_in_modelmeta_init"
 
+    def set_query(self, query_set, tblname, name):
+        # Generate INNER JOIN-ed clause
+        h = {
+            "revtbl": self.rev._meta.table_name,
+            "revkey": self.rev_fkey,
+            "reftbl": tblname,
+            "refkey": self.ref_key,
+            "fldname": "%s.%s" % (tblname, name),
+        }
+        tmpl = 'INNER JOIN "%(revtbl)s" AS "%(fldname)s" ON "%(reftbl)s"."%(refkey)s" = "%(fldname)s"."%(revkey)s"'
+        query_set.clauses["joins"].append(tmpl % h)
+        return self.rev, h["fldname"]
+
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
         assert self._ref_key, "Primary key name of '%s' can't be specified." % self.ref.__name__
@@ -705,10 +733,29 @@ class _ManyToManyBase(property):
         qs = cls.select('"%s"."%s"=?' % (cls._meta.table_name, cls._meta.primary_key.name), [owner.pk])
         return ManyToManySet(qs, owner, self.ref, self.lnk)
 
-class ManyToManyField(_ManyToManyBase):
+class ManyToMany(_ManyToManyBase):
     def __init__(self, ref, related_name=None, lnk=None):
-        super(ManyToManyField, self).__init__(ref, lnk=lnk)
+        super(ManyToMany, self).__init__(ref, lnk=lnk)
         self.related_name = related_name
+
+    def set_query(self, query_set, tblname, name):
+        h = {
+            "clstbl": tblname,
+            "clskey": self.cls._meta.primary_key.name,
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref._meta.primary_key.name,
+            "lnktbl": self.lnk._meta.table_name,
+            "fldname": "%s.%s" % (tblname, name),
+        }
+        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
+        h["lnkrefkey"] = "%s_id" % h["reftbl"]
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(lnktbl)s" AS "%(fldname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s.lnk"."%(lnkclskey)s"' % h
+        )
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
+        )
+        return self.ref, h["fldname"]
 
     def _called_in_modelmeta_init(self, cls, fld_name):
         # This method will be called in ModelMeta#__init__().
@@ -757,24 +804,21 @@ class QuerySet(object):
         self._cache = []    # cache list
 
     def _generate_sql(self):
+        # To delete: wrapper_clause is set to DELETE...
         if self.clauses["distinct"]: distinct = "DISTINCT "
         else: distinct = ""
 
-        if self.clauses["type"] == "DELETE":
-            sqls = ['DELETE FROM "%s"' % self.cls._meta.table_name]
-        else:
-            sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+        sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
 
         if len(self.clauses["joins"]): sqls += self.clauses["joins"]
 
         if len(self.clauses["where"]):
             sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
 
-        if self.clauses["type"] == "SELECT":
-            if len(self.clauses["order_by"]):
-                sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
-            if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
-            if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
+        if len(self.clauses["order_by"]):
+            sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
+        if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
+        if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
 
         if self.wrapper_clause:
             return self.wrapper_clause % "\n".join(sqls)
@@ -840,38 +884,6 @@ class QuerySet(object):
         except StopIteration: return obj
         raise MultipleObjectsReturned("The 'get()' requires single result.")
 
-    def o_select(self, *args, **kw):
-        newset = self.__class__(self)
-        if len(args) == 1:
-            newset.clauses["where"].append(args[0])
-        elif len(args) == 2:
-            newset.clauses["where"].append(args[0])
-            if isinstance(args[1], (list, tuple)): newset.clauses["values"] += list(args[1])
-            else: newset.clauses["values"].append(args[1])
-        elif len(args) > 2:
-            raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
-
-        cls = self.cls
-        for k, v in kw.items():
-            items = k.split("__")
-            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
-            if len(items) == 2:
-                if items[1] == "in": wh = '"%s" IN (%s)' % (items[0], ",".join(["?"] * len(v)))
-            else:
-                if not cls.__dict__.has_key(k):
-                    raise RuntimeError("Field '%s' is not in model '%s'." % (k, cls.__name__))
-                fld = cls.__dict__[k]
-                if isinstance(fld, ManyToOne):  # ManyToOne field
-                    if not isinstance(v, fld.ref):
-                        msg = "Field '%s.%s' is related with '%s', not '%s'."
-                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
-                    k, v = fld.fkey, v.pk
-                wh = '"%s" = ?' % k
-            newset.clauses["where"].append(wh)
-            if isinstance(v, (list, tuple)): newset.clauses["values"] += list(v)
-            else: newset.clauses["values"].append(v)
-        return newset
-
     def select(self, *args, **kw):
         newset = self.__class__(self)
         if len(args) == 1:
@@ -883,53 +895,40 @@ class QuerySet(object):
         elif len(args) > 2:
             raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
 
-        # Parsing inline functions
-        def _in(k, v): return ('"%s" IN (%s)' % (k, ",".join(["?"] * len(v))), v)
-        f = {"in":_in}
-        def _convert(name, param):
-            fld = self.cls.__dict__[name]
-            if isinstance(fld, ManyToOne):
-                fullname = '%s"."%s' % (self.cls._meta.table_name, fld.fkey)
-                if isinstance(param, (list, tuple)):
-                    if filter(lambda o:not isinstance(o, fld.ref), param):
-                        msg = "Field '%s.%s' is related with '%s', not '%s'."
-                        raise RuntimeError(msg % (cls.__name__, k, fld.ref.__name__, type(v).__name__))
-                    lst = [o.pk for o in param]
-                    k, v = fullname, lst
-                elif param is None or param is NotNull:
-                    k, v = fullname, param
-                elif not isinstance(param, fld.ref):
-                    msg = "Field '%s.%s' is related with '%s', not '%s'."
-                    raise RuntimeError(msg % (self.cls.__name__, name, fld.ref.__name__, type(param).__name__))
-                    k, v = fullname, param.pk
-                else:
-                    k, v = fullname, param.pk
-            else:
-                if isinstance(self, ManyToManySet): fullname = '%s"."%s' % (self.ref._meta.table_name, name)
-                else:
-                    # CAUTION[2012-07-11]: This parameter may cause "ambigous column name". Watch it!!
-                    fullname = name
-                if isinstance(param, datetime):
-                    if isinstance(fld, TimestampField): k, v = fullname, param.strftime("%Y-%m-%d %H:%M:%S")
-                    elif isinstance(fld, DateField): k, v = fullname, param.strftime("%Y-%m-%d")
-                    elif isinstance(fld, TimeField): k, v = fullname, param.strftime("%H:%M:%S")
-                    else: raise RuntimeError("Field type '%s' does not accept '%s'." % (type(fld).__name__, type(param).__name__))
-                else:
-                    k, v = fullname, param
-            if v is None: return (k, '"%s" IS NULL' % k, [])
-            elif v is NotNull: return (k, '"%s" IS NOT NULL' % k, [])
-            elif isinstance(v, Like): return (k, '"%s" LIKE ?' % k, v.likestr)
-            return (k, '"%s" = ?' % k, v)
-
         # Parse keywords
         for k, v in kw.items():
+            curmdl = self.cls
+            curname = self.cls._meta.table_name
+
+            if isinstance(v, Model):
+                # Specified with Model object
+                k += "__%s" % v._meta.primary_key.name
+                v = v.pk
+
             items = k.split("__")
-            if len(items) > 2: raise RuntimeError("Select have not supported complex clause yet.")
-            key, wh, p = _convert(items[0], v)
-            if len(items) == 2: wh, p = f[items[1]](key, p)
-            newset.clauses["where"].append(wh)
-            if isinstance(p, (list, tuple)): newset.clauses["values"] += list(p)
-            else: newset.clauses["values"].append(p)
+            while items:
+                item = items.pop(0)
+                fld = curmdl.__dict__[item]
+                if callable(getattr(fld, "set_query", None)):
+                    # Fields of ManyToOne, _ManyToOne_Rev, ManyToMany
+                    curmdl, curname = fld.set_query(newset, curname, item)
+                elif isinstance(fld, Field):
+                    break
+                else:
+                    raise RuntimeError("Invalid column name. '%s(%s)'" % (item, fld.__class__.__name__))
+
+            # Convert field name and value
+            if len(items) >= 2:
+                raise RuntimeError("Invalid operand name. '%s'" % "__".join(items))
+
+            # Parsing inline operator
+            opc = OpConverter(curname)
+            whr, prm = opc.get_clause(items[0] if items else None, fld, v)
+            newset.clauses["where"].append(whr)
+            if prm is not None:
+                if isinstance(prm, (list, tuple)): newset.clauses["values"] += list(prm)
+                else: newset.clauses["values"].append(prm)
+
         return newset
 
     def all(self):
@@ -937,6 +936,8 @@ class QuerySet(object):
 
     def delete(self):
         self.clauses["type"] = "DELETE"
+        h = {"tbl": self.cls._meta.table_name, "pk": self.cls._meta.primary_key.name}
+        self.wrapper_clause = 'DELETE FROM "%(tbl)s" WHERE "%(pk)s" IN (SELECT "%(pk)s" FROM (\n%%s\n))' % h
         self._execute()
 
     def distinct(self):
@@ -1086,7 +1087,7 @@ class ModelMeta(type):
 
         has_primary_key = False
         for k in dict.keys():
-            if isinstance(dict[k], ManyToManyField): dict[k]._called_in_modelmeta_init(cls, k)
+            if isinstance(dict[k], ManyToMany): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], ManyToOne): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
             if isinstance(dict[k], Field) and dict[k].is_primary_key: has_primary_key = True
@@ -1141,7 +1142,7 @@ class Model(object):
         return cls(**h2)
 
     @classmethod
-    def select_from(cls, sql, params):
+    def select_from(cls, sql, params=()):
         objs = []
         cur = execute(sql, params)
         for row in cur.fetchall(): objs.append(cls._factory(cur, row))
@@ -1155,6 +1156,9 @@ class Model(object):
 
     @classmethod
     def select(cls, *args, **kw): return QuerySet(cls).select(*args, **kw)
+
+    @classmethod
+    def proto_select(cls, *args, **kw): return QuerySet(cls).proto_select(*args, **kw)
 
     @classmethod
     def create(cls, **kw):
@@ -1247,6 +1251,31 @@ class Min(AggregateFunction):   name = "MIN"
 class Sum(AggregateFunction):   name = "SUM"
 class Total(AggregateFunction): name = "TOTAL"
 class Count(AggregateFunction): name = "COUNT"
+
+# --- Converter for operators
+class OpConverter(object):
+    CONV = {
+        "lt": "<", "le": "<=", "ge": ">=", "gt": ">",
+        "like": "LIKE", "glob": "GLOB", "regexp": "REGEXP",
+    }
+    def __init__(self, tblname): self.tblname = tblname
+
+    def get_clause(self, op, fld, value):
+        if op:
+            if hasattr(self, "_OP_%s" % op): sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
+            elif self.CONV.has_key(op): sqltmpl, value = "%%s %s ?" % self.CONV[op], value
+            else: raise ValueError("Operator '%s' is not supported." % op)
+        else:
+            sqltmpl, value = self._convert(fld, value)
+        return sqltmpl % '"%s"."%s"' % (self.tblname, fld.name), value
+
+    def _OP_in(self, value): return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
+
+    def _convert(self, fld, value):
+        if value is None:           return "%s IS NULL", None
+        if value is NotNull:        return "%s IS NOT NULL", None
+        if isinstance(value, Like): return "%s LIKE ?", value.likestr
+        return "%s = ?", fld.to_database(None, value)
 
 # --- Plugin for Bottle web framework
 class MacaronPlugin(object):

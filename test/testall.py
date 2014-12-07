@@ -11,7 +11,12 @@ test_files = glob.glob(os.path.join(test_root, "test_*.py"))
 os.chdir(test_root)
 sys.path.insert(0, os.path.dirname(test_root))
 sys.path.insert(0, test_root)
-test_names = [os.path.basename(name)[:-3] for name in test_files]
+
+if len(sys.argv) == 2:
+    test_names = ["test_%s" % sys.argv[1]]
+else:
+    test_files = glob.glob(os.path.join(test_root, "test_*.py"))
+    test_names = [os.path.basename(name)[:-3] for name in test_files]
 
 suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
 
