@@ -606,6 +606,18 @@ class CharField(Field):
             raise ValidationError("Field '%s': Text is too short, min_length=%d [%s]." % (self.name, self.min_length, value))
         return True
 
+class MatchingField(CharField):
+    def __init__(self, pattern, **kw):
+        super(MatchingField, self).__init__(**kw)
+        self.pattern = pattern
+
+    def validate(self, obj, value):
+        super(MatchingField, self).validate(obj, value)
+        if value == None: return True
+        if not re.match(self.pattern, value):
+            raise ValidationError("Field '%s': Text does not match patern." % self.name)
+        return True
+
 # --- Relationships
 class ManyToOne(Field):
     """Many to one relation ship definition class"""
