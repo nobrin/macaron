@@ -28,7 +28,7 @@ Example::
     <Member 'Ritsu Tainaka : Dr'>
     <Member 'Mio Akiyama : Ba'>
 
-Macaron supports **Many-To-One** relationships and reverse reference. Many-To-Many relationships have not been supported yet. To realize simple implementation, Macaron does not provide methods for creation of tables.
+Macaron supports **Many-To-One** and **Many-To-Many** (new in 0.4.0-dev) relationships and reverse reference. To realize simple implementation, Macaron does not provide methods for creation of tables.
 
 MacaronPlugin class for Bottle_ web framework is implemented.
 
