@@ -19,7 +19,7 @@ class Member(macaron.Model):
 
 class SubTitle(macaron.Model):
     title = macaron.CharField(max_length=30)
-    movie = macaron.ManyToOne(Movie, related_name="subtitles")
+    movie = macaron.ManyToOne(Movie, related_name="subtitles", on_delete="CASCADE")
 
 class ComplexSelectionTestCase(unittest.TestCase):
     def setUp(self):
@@ -140,6 +140,35 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.name, "Smile")
+
+    def test_m2m_deletion(self):
+        members = Member.select(movies__title__glob="NewStage*")
+        self.assertEqual(members.count(), 2)
+        Movie.select(title="NewStage").delete()
+
+        members = Member.select(movies__title__glob="NewStage*")
+        self.assertEqual(members.count(), 1)
+        self.assertEqual(members[0].curename, "Fortune")
+
+    def test_m2m_append_duplicatedly(self):
+        # Appending the same object to the parent will add link twice.
+        movie = Movie.get(title="NewStage2")
+        member = Member.get(curename="Fortune")
+        member.movies.append(movie)
+
+        fortune = Member.get(curename="Fortune")
+        self.assertEqual(fortune.movies.count(), 2)
+
+    def test_select_from(self):
+        members = Member.select_from("SELECT * FROM member WHERE id = 1")
+        self.assertTrue(isinstance(members, list))
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0].curename, "Happy")
+
+        members = Member.select_from("SELECT * FROM member WHERE curename = ?", ("Fortune",))
+        self.assertTrue(isinstance(members, list))
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0].curename, "Fortune")
 
 if __name__ == "__main__":
     unittest.main()

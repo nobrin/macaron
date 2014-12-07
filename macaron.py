@@ -1142,7 +1142,7 @@ class Model(object):
         return cls(**h2)
 
     @classmethod
-    def select_from(cls, sql, params):
+    def select_from(cls, sql, params=()):
         objs = []
         cur = execute(sql, params)
         for row in cur.fetchall(): objs.append(cls._factory(cur, row))
@@ -1263,7 +1263,7 @@ class OpConverter(object):
     def get_clause(self, op, fld, value):
         if op:
             if hasattr(self, "_OP_%s" % op): sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
-            elif self.CONV.has_key(op): sqltmpl, value = "%%s %s ?", value
+            elif self.CONV.has_key(op): sqltmpl, value = "%%s %s ?" % self.CONV[op], value
             else: raise ValueError("Operator '%s' is not supported." % op)
         else:
             sqltmpl, value = self._convert(fld, value)
