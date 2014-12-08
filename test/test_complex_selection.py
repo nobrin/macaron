@@ -84,6 +84,37 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs[0].curename, "Happy")
         self.assertEqual(qs[1].curename, "Fortune")
 
+    def test_in(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
+        sql += 'WHERE ("member.movies"."title" IN (?,?,?))'
+        qs = Member.select(movies__title__in=("NewStage", "NewStage2", "Deluxe"))
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0].curename, "Happy")
+        self.assertEqual(qs[1].curename, "Fortune")
+
+    def test_not_in(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
+        sql += 'WHERE ("member.movies"."title" NOT IN (?,?,?))'
+        qs = Member.select(movies__title__not_in=("NewStage", "NewStage2", "Deluxe"))
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 0)
+
+    def test_between(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'WHERE ("member"."joined" BETWEEN ? AND ?)'
+        qs = Member.select(joined__between=(datetime(2012, 1, 1), datetime(2012, 4, 1)))
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].curename, "Happy")
+
+        self.assertRaises(ValueError, lambda: Member.select(joined__between=(1, 2, 3)))
+        self.assertRaises(TypeError, lambda: Member.select(joined__between=12))
+
     def test_selection_with_many2one(self):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'

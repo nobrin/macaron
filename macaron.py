@@ -31,6 +31,7 @@ __license__ = "MIT License"
 import sqlite3, re, sys
 import copy, warnings
 import logging
+import collections
 from datetime import datetime
 
 # --- Exceptions
@@ -1295,6 +1296,11 @@ class OpConverter(object):
         return sqltmpl % '"%s"."%s"' % (self.tblname, fld.name), value
 
     def _OP_in(self, value): return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
+    def _OP_not_in(self, value): return "%%s NOT IN (%s)" % ",".join(["?"] * len(value)), value
+    def _OP_between(self, value):
+        if not isinstance(value, collections.Iterable): raise TypeError("Between operator requires a list")
+        if len(value) != 2: raise ValueError("Between operator requires a list which consists of 2 values.")
+        return "%s BETWEEN ? AND ?", value
 
     def _convert(self, fld, value):
         if value is None:           return "%s IS NULL", None
