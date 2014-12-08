@@ -60,7 +60,7 @@ sqlite_version_info = sqlite3.sqlite_version_info
 #_callbacks_when_connect = [] # TEMPORARY BUG FIX: see the comment of ModelMeta.__init__()
 
 # --- Module methods
-def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1, keep=False, threading=False):
+def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, history=-1, keep=False, threading=False, regexp="default"):
     """
     :param dbfile: SQLite database file name.
     :param lazy: Uses :class:`LazyConnection`.
@@ -96,6 +96,19 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     if lazy: conn = LazyConnection(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
     else: conn = sqlite3.connect(dbfile, factory=_create_wrapper(logger), check_same_thread=(not threading))
     if not conn: raise Exception("Can't create connection.")
+
+    # Set REGEXP function
+    if regexp:
+        if regexp == "default":
+            def _regexp(expr, item):
+                try: return re.search(expr, item) is not None
+                except Exception, e: raise
+        elif callable(regexp):
+            _regexp = regexp
+        else:
+            raise ValueError("regexp must be 'default' or function.")
+        conn.create_function("REGEXP", 2, _regexp)
+
     _m.connection["default"] = conn
     _m.autocommit = autocommit
 

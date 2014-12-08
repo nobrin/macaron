@@ -73,6 +73,17 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
+    def test_regexp(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
+        sql += 'WHERE ("member.movies"."title" REGEXP ?)'
+        qs = Member.select(movies__title__regexp="New.+")
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0].curename, "Happy")
+        self.assertEqual(qs[1].curename, "Fortune")
+
     def test_selection_with_many2one(self):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
