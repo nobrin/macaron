@@ -22,7 +22,7 @@ Example::
     >>> team.members.append(name="Azusa", part="Gt2")
     <Member object 1>
     >>> macaron.bake()
-    >>> azu = Member.get("part=?", ["Gt2"])
+    >>> azu = Member.get(part="Gt2")
     >>> print azu
     <Member 'Azusa : Gt2'>
     >>> macaron.cleanup()
@@ -35,8 +35,8 @@ Macaron aims to make the use of database easy for small applications.
 
 * An object-relational mapper (ORM) for SQLite.
 * There are no dependencies except Python Standard Library.
-* Auto-definition of model fields from database tables.
 * Many-To-One relationships are supported.
+* Many-To-Many relationships are supported (New in 0.4).
 * Pre-defined and user-defined validator can be used.
 * Plugin for Bottle which is a micro-sized web framework is included.
 * Module consists of only single file.
