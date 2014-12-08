@@ -1295,12 +1295,16 @@ class OpConverter(object):
             sqltmpl, value = self._convert(fld, value)
         return sqltmpl % '"%s"."%s"' % (self.tblname, fld.name), value
 
-    def _OP_in(self, value): return "%%s IN (%s)" % ",".join(["?"] * len(value)), value
-    def _OP_not_in(self, value): return "%%s NOT IN (%s)" % ",".join(["?"] * len(value)), value
-    def _OP_between(self, value):
+    def _base_in(self, op, value): return "%%s %s (%s)" % (op, ",".join(["?"] * len(value))), value
+    def _OP_in(self, value): return self._base_in("IN", value)
+    def _OP_not_in(self, value): return self._base_in("NOT IN", value)
+
+    def _base_between(self, op, value):
         if not isinstance(value, collections.Iterable): raise TypeError("Between operator requires a list")
         if len(value) != 2: raise ValueError("Between operator requires a list which consists of 2 values.")
-        return "%s BETWEEN ? AND ?", value
+        return "%%s %s ? AND ?" % op, value
+    def _OP_between(self, value): return self._base_between("BETWEEN", value)
+    def _OP_not_between(self, value): return self._base_between("NOT BETWEEN", value)
 
     def _convert(self, fld, value):
         if value is None:           return "%s IS NULL", None

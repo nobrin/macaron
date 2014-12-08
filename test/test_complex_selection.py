@@ -115,6 +115,14 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertRaises(ValueError, lambda: Member.select(joined__between=(1, 2, 3)))
         self.assertRaises(TypeError, lambda: Member.select(joined__between=12))
 
+    def test_not_between(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'WHERE ("member"."joined" NOT BETWEEN ? AND ?)'
+        qs = Member.select(joined__not_between=(datetime(2012, 1, 1), datetime(2012, 4, 1)))
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].curename, "Fortune")
+
     def test_selection_with_many2one(self):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
