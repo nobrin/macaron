@@ -220,6 +220,65 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(len(members), 1)
         self.assertEqual(members[0].curename, "Fortune")
 
+    def test_get_specified_field_m2o_m2m(self):
+        sql  = 'SELECT "__t1"."curename", "mygroup".*, "subgroup".*, "movies".* FROM (\n'
+        sql += 'SELECT "member".* FROM "member"\n'
+        sql += ') AS "__t1"\n'
+        sql += 'INNER JOIN "group" AS "mygroup" ON "__t1"."mygroup_id" = "mygroup"."id"\n'
+        sql += 'INNER JOIN "group" AS "subgroup" ON "__t1"."subgroup_id" = "subgroup"."id"\n'
+        sql += 'INNER JOIN "membermovielink" AS "movies.lnk" ON "__t1"."id" = "movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "movies" ON "movies.lnk"."movie_id" = "movies"."id"'
+
+        qs = Member.all().fields("curename", "mygroup", "subgroup", "movies")
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 2)
+
+        self.assertEqual(qs[0]["mygroup"], Group.get(1))
+        self.assertEqual(qs[0]["movies"], Movie.get(1))
+        self.assertEqual(qs[0]["curename"], "Happy")
+        self.assertEqual(qs[0]["subgroup"], Group.get(2))
+
+        self.assertEqual(qs[1]["mygroup"], Group.get(3))
+        self.assertEqual(qs[1]["movies"], Movie.get(2))
+        self.assertEqual(qs[1]["curename"], "Fortune")
+        self.assertEqual(qs[1]["subgroup"], Group.get(4))
+
+    def test_get_specified_field_m2orev(self):
+        sql  = 'SELECT "__t1"."name", "groups".* FROM (\n'
+        sql += 'SELECT "series".* FROM "series"\n'
+        sql += ') AS "__t1"\n'
+        sql += 'INNER JOIN "group" AS "groups" ON "__t1"."id" = "groups"."series_id"'
+
+        qs = Series.all().fields("name", "groups")
+        self.assertEqual(qs.sql, sql)
+
+        self.assertEqual(qs[0]["name"], "Smile Precure")
+        self.assertEqual(qs[0]["groups"], Group.get(1))
+
+        self.assertEqual(qs[1]["name"], "Smile Precure")
+        self.assertEqual(qs[1]["groups"], Group.get(2))
+
+        self.assertEqual(qs[2]["name"], "Happiness Charge Precure")
+        self.assertEqual(qs[2]["groups"], Group.get(3))
+
+        self.assertEqual(qs[3]["name"], "Happiness Charge Precure")
+        self.assertEqual(qs[3]["groups"], Group.get(4))
+
+    def test_get_specified_field_m2mrev(self):
+        sql  = 'SELECT "__t1"."title", "members".* FROM (\n'
+        sql += 'SELECT "movie".* FROM "movie"\n'
+        sql += ') AS "__t1"\n'
+        sql += 'INNER JOIN "membermovielink" AS "members.lnk" ON "__t1"."id" = "members.lnk"."movie_id"\n'
+        sql += 'INNER JOIN "member" AS "members" ON "members.lnk"."member_id" = "members"."id"'
+
+        qs = Movie.all().fields("title", "members")
+        self.assertEqual(qs.sql, sql)
+
+        self.assertEqual(qs[0]["title"], "NewStage")
+        self.assertEqual(qs[0]["members"], Member.get(1))
+        self.assertEqual(qs[1]["title"], "NewStage2")
+        self.assertEqual(qs[1]["members"], Member.get(2))
+
 if __name__ == "__main__":
     unittest.main()
 

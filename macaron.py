@@ -342,6 +342,7 @@ class FieldInfoCollection(list):
         return self._field_dict[name]
 
     def keys(self): return self._field_dict.keys()
+    def has_key(self, name): return self._field_dict.has_key(name)
 
 class ClassProperty(property):
     """Using class property wrapper class"""
@@ -647,6 +648,7 @@ class ManyToOne(Field):
         _pre_field_order.append(self)
 
     def set_query(self, query_set, tblname, name):
+        """
         h = {
             "reftbl": self.ref._meta.table_name,
             "refkey": self.ref_key,
@@ -657,6 +659,22 @@ class ManyToOne(Field):
         tmpl = 'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s"."%(refkey)s"'
         query_set.clauses["joins"].append(tmpl % h)
         return self.ref, h["fldname"]
+        """
+        as_name = "%s.%s" % (tblname, name)
+        mdl, joins = self.join_clauses(as_name, tblname)
+        query_set.clauses["joins"] += joins
+        return mdl, as_name
+
+    def join_clauses(self, as_name, tblname=None):
+        # as_name specifies referred table synonym.
+        # tblname specifies the table which referres reference table.
+        h = {
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref_key,
+            "fkey"  : ('"%s".' % tblname if tblname else "") + '"%s"' % self.fkey,
+            "as_name": as_name,
+        }
+        return self.ref, ['INNER JOIN "%(reftbl)s" AS "%(as_name)s" ON %(fkey)s = "%(as_name)s"."%(refkey)s"' % h]
 
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
@@ -719,6 +737,7 @@ class _ManyToOne_Rev(property):
 
     def set_query(self, query_set, tblname, name):
         # Generate INNER JOIN-ed clause
+        """
         h = {
             "revtbl": self.rev._meta.table_name,
             "revkey": self.rev_fkey,
@@ -729,6 +748,22 @@ class _ManyToOne_Rev(property):
         tmpl = 'INNER JOIN "%(revtbl)s" AS "%(fldname)s" ON "%(reftbl)s"."%(refkey)s" = "%(fldname)s"."%(revkey)s"'
         query_set.clauses["joins"].append(tmpl % h)
         return self.rev, h["fldname"]
+        """
+        as_name = "%s.%s" % (tblname, name)
+        mdl, joins = self.join_clauses(as_name, tblname)
+        query_set.clauses["joins"] += joins
+        return mdl, as_name
+
+    def join_clauses(self, as_name, tblname=None):
+        # as_name specifies referred table synonym.
+        # tblname specifies the table which referres reference table.
+        h = {
+            "revtbl": self.rev._meta.table_name,
+            "revkey": self.rev_fkey,
+            "refkey": ('"%s".' % tblname if tblname else "") + '"%s"' % self.ref_key,
+            "as_name": as_name,
+        }
+        return self.rev, ['INNER JOIN "%(revtbl)s" AS "%(as_name)s" ON %(refkey)s = "%(as_name)s"."%(revkey)s"' % h]
 
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
@@ -748,23 +783,8 @@ class _ManyToManyBase(property):
         self.cls = cls
         self.name = name
 
-    def _get_link_class(self):
-        if isinstance(self._lnk, basestring):
-            self._lnk = getattr(sys.modules[self.cls.__module__], self._lnk)
-        return self._lnk
-    def _set_link_class(self, value): self._lnk = value
-    lnk = property(_get_link_class, _set_link_class)
-
-    def __get__(self, owner, cls):
-        qs = cls.select('"%s"."%s"=?' % (cls._meta.table_name, cls._meta.primary_key.name), [owner.pk])
-        return ManyToManySet(qs, owner, self.ref, self.lnk)
-
-class ManyToMany(_ManyToManyBase):
-    def __init__(self, ref, related_name=None, lnk=None):
-        super(ManyToMany, self).__init__(ref, lnk=lnk)
-        self.related_name = related_name
-
     def set_query(self, query_set, tblname, name):
+        """
         h = {
             "clstbl": tblname,
             "clskey": self.cls._meta.primary_key.name,
@@ -782,6 +802,90 @@ class ManyToMany(_ManyToManyBase):
             'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
         )
         return self.ref, h["fldname"]
+        """
+        asname = "%s.%s" % (tblname, name)
+        mdl, joins = self.join_clauses(asname, tblname)
+        query_set.clauses["joins"] += joins
+        return mdl, asname
+
+    def join_clauses(self, asname, tblname=None):
+        # as_name specifies referred table synonym.
+        # tblname specifies the table which referres reference table.
+        h = {
+            "clstbl": tblname,
+            "clskey": self.cls._meta.primary_key.name,
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref._meta.primary_key.name,
+            "lnktbl": self.lnk._meta.table_name,
+            "asname": asname,
+        }
+        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
+        h["lnkrefkey"] = "%s_id" % h["reftbl"]
+        joins = [
+            'INNER JOIN "%(lnktbl)s" AS "%(asname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(asname)s.lnk"."%(lnkclskey)s"' % h,
+            'INNER JOIN "%(reftbl)s" AS "%(asname)s" ON "%(asname)s.lnk"."%(lnkrefkey)s" = "%(asname)s"."%(refkey)s"' % h,
+        ]
+        return self.ref, joins
+
+    def _get_link_class(self):
+        if isinstance(self._lnk, basestring):
+            self._lnk = getattr(sys.modules[self.cls.__module__], self._lnk)
+        return self._lnk
+    def _set_link_class(self, value): self._lnk = value
+    lnk = property(_get_link_class, _set_link_class)
+
+    def __get__(self, owner, cls):
+        qs = cls.select('"%s"."%s"=?' % (cls._meta.table_name, cls._meta.primary_key.name), [owner.pk])
+        return ManyToManySet(qs, owner, self.ref, self.lnk)
+
+class ManyToMany(_ManyToManyBase):
+    def __init__(self, ref, related_name=None, lnk=None):
+        super(ManyToMany, self).__init__(ref, lnk=lnk)
+        self.related_name = related_name
+
+    def o_set_query(self, query_set, tblname, name):
+        """
+        h = {
+            "clstbl": tblname,
+            "clskey": self.cls._meta.primary_key.name,
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref._meta.primary_key.name,
+            "lnktbl": self.lnk._meta.table_name,
+            "fldname": "%s.%s" % (tblname, name),
+        }
+        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
+        h["lnkrefkey"] = "%s_id" % h["reftbl"]
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(lnktbl)s" AS "%(fldname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s.lnk"."%(lnkclskey)s"' % h
+        )
+        query_set.clauses["joins"].append(
+            'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
+        )
+        return self.ref, h["fldname"]
+        """
+        asname = "%s.%s" % (tblname, name)
+        mdl, joins = self.join_clauses(asname, tblname)
+        query_set.clauses["joins"] += joins
+        return mdl, asname
+
+    def o_join_clauses(self, asname, tblname=None):
+        # as_name specifies referred table synonym.
+        # tblname specifies the table which referres reference table.
+        h = {
+            "clstbl": tblname,
+            "clskey": self.cls._meta.primary_key.name,
+            "reftbl": self.ref._meta.table_name,
+            "refkey": self.ref._meta.primary_key.name,
+            "lnktbl": self.lnk._meta.table_name,
+            "asname": asname,
+        }
+        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
+        h["lnkrefkey"] = "%s_id" % h["reftbl"]
+        joins = [
+            'INNER JOIN "%(lnktbl)s" AS "%(asname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(asname)s.lnk"."%(lnkclskey)s"' % h,
+            'INNER JOIN "%(reftbl)s" AS "%(asname)s" ON "%(asname)s.lnk"."%(lnkrefkey)s" = "%(asname)s"."%(refkey)s"' % h,
+        ]
+        return self.ref, joins
 
     def _called_in_modelmeta_init(self, cls, fld_name):
         # This method will be called in ModelMeta#__init__().
@@ -986,6 +1090,58 @@ class QuerySet(object):
         newset = self.__class__(self)
         newset.clauses["offset"] = int(offset)
         newset.clauses["limit"] = -1    # When only offset is set, SQL syntax error is caused.
+        return newset
+
+    def fields(self, *args):
+        SUBTBLNAME = "__t1"
+        newset = self.__class__(self)
+        fldnames = []
+        names = []
+        mdls = []
+        joins = []
+
+        for n in args:
+            if not self.cls._meta.fields.has_key(n) and not self.cls.__dict__.has_key(n):
+                raise KeyError("Field %s.%s does not exist." % (self.cls.__name__, n))
+
+            fld = self.cls.__dict__[n]
+            if callable(getattr(fld, "join_clauses", None)):
+                fldnames.append('"%s".*' % n)
+                mdl, join_clauses = fld.join_clauses(n, SUBTBLNAME)
+                mdls.append(mdl)
+                joins += join_clauses
+            elif isinstance(fld, Field):
+                fldnames.append('"%s"."%s"' % (SUBTBLNAME, n))
+                mdls.append(None)
+            else:
+                raise TypeError("Field %s.%s is not a field." % (self.cls.__name__, n))
+
+            names.append(n)
+
+        def _tuple_factory(cur, row):
+            obj = {}
+            values = list(row)
+            desc = list(cur.description)
+            for idx in range(0, len(mdls)):
+                mdl = mdls[idx]
+                if mdl:
+                    mdldesc = desc[:len(mdl._meta.fields)]
+                    h1 = dict([[d[0], values[i]] for i, d in enumerate(mdldesc)])
+                    h2 = {} # for create a new model object
+                    for fld in mdl._meta.fields:
+                        h2[fld.name] = fld.to_object(sqlite3.Row(cur, tuple(values)), h1[fld.name])
+                    values = values[len(h2):]
+                    desc = desc[len(mdl._meta.fields):]
+                    obj[names[idx]] = mdl(**h2)
+                else:
+                    obj[names[idx]] = values.pop(0)
+                    desc.pop(0)
+            assert len(values) == 0
+            return obj
+
+        newset.factory = _tuple_factory
+        newset.wrapper_clause = 'SELECT %s FROM (\n%%s\n) AS "%s"\n' % (", ".join(fldnames), SUBTBLNAME)
+        newset.wrapper_clause += "\n".join(joins)
         return newset
 
     def __getitem__(self, index):
