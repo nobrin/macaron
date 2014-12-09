@@ -665,7 +665,10 @@ class ManyToOne(Field):
         query_set.clauses["joins"] += joins
         return mdl, as_name
 
-    def join_clauses(self, as_name, tblname=None):
+    @property
+    def model(self): return self.ref
+
+    def sql_joins(self, as_name, tblname=None):
         # as_name specifies referred table synonym.
         # tblname specifies the table which referres reference table.
         h = {
@@ -674,7 +677,7 @@ class ManyToOne(Field):
             "fkey"  : ('"%s".' % tblname if tblname else "") + '"%s"' % self.fkey,
             "as_name": as_name,
         }
-        return self.ref, ['INNER JOIN "%(reftbl)s" AS "%(as_name)s" ON %(fkey)s = "%(as_name)s"."%(refkey)s"' % h]
+        return ['INNER JOIN "%(reftbl)s" AS "%(as_name)s" ON %(fkey)s = "%(as_name)s"."%(refkey)s"' % h]
 
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
@@ -754,7 +757,10 @@ class _ManyToOne_Rev(property):
         query_set.clauses["joins"] += joins
         return mdl, as_name
 
-    def join_clauses(self, as_name, tblname=None):
+    @property
+    def model(self): return self.rev
+
+    def sql_joins(self, as_name, tblname=None):
         # as_name specifies referred table synonym.
         # tblname specifies the table which referres reference table.
         h = {
@@ -763,7 +769,7 @@ class _ManyToOne_Rev(property):
             "refkey": ('"%s".' % tblname if tblname else "") + '"%s"' % self.ref_key,
             "as_name": as_name,
         }
-        return self.rev, ['INNER JOIN "%(revtbl)s" AS "%(as_name)s" ON %(refkey)s = "%(as_name)s"."%(revkey)s"' % h]
+        return ['INNER JOIN "%(revtbl)s" AS "%(as_name)s" ON %(refkey)s = "%(as_name)s"."%(revkey)s"' % h]
 
     def _get_ref_key(self):
         self._ref_key = self._ref_key or self.ref._meta.primary_key.name
@@ -808,7 +814,10 @@ class _ManyToManyBase(property):
         query_set.clauses["joins"] += joins
         return mdl, asname
 
-    def join_clauses(self, asname, tblname=None):
+    @property
+    def model(self): return self.ref
+
+    def sql_joins(self, asname, tblname=None):
         # as_name specifies referred table synonym.
         # tblname specifies the table which referres reference table.
         h = {
@@ -821,11 +830,10 @@ class _ManyToManyBase(property):
         }
         h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
         h["lnkrefkey"] = "%s_id" % h["reftbl"]
-        joins = [
+        return [
             'INNER JOIN "%(lnktbl)s" AS "%(asname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(asname)s.lnk"."%(lnkclskey)s"' % h,
             'INNER JOIN "%(reftbl)s" AS "%(asname)s" ON "%(asname)s.lnk"."%(lnkrefkey)s" = "%(asname)s"."%(refkey)s"' % h,
         ]
-        return self.ref, joins
 
     def _get_link_class(self):
         if isinstance(self._lnk, basestring):
@@ -995,11 +1003,13 @@ class QuerySet(object):
             while items:
                 item = items.pop(0)
                 fld = curmdl.__dict__[item]
-                if callable(getattr(fld, "join_clauses", None)):
+                if callable(getattr(fld, "sql_joins", None)):
                     # Fields of ManyToOne, _ManyToOne_Rev, ManyToMany
                     asname = "%s.%s" % (curname, item)
-                    curmdl, joins = fld.join_clauses(asname, curname)
-                    newset.clauses["joins"] += joins
+                    newset.clauses["joins"] += fld.sql_joins(asname, curname)
+                    curmdl = fld.model
+#                    curmdl, joins = fld.join_clauses(asname, curname)
+#                    newset.clauses["joins"] += joins
                     curname = asname
                 elif isinstance(fld, Field):
                     break
@@ -1064,11 +1074,12 @@ class QuerySet(object):
                 raise KeyError("Field %s.%s does not exist." % (self.cls.__name__, n))
 
             fld = self.cls.__dict__[n]
-            if callable(getattr(fld, "join_clauses", None)):
+            if callable(getattr(fld, "sql_joins", None)):
                 fldnames.append('"%s".*' % n)
-                mdl, join_clauses = fld.join_clauses(n, SUBTBLNAME)
-                mdls.append(mdl)
-                joins += join_clauses
+#                join_clauses = fld.sql_joins(n, SUBTBLNAME)
+#                mdl, join_clauses = fld.join_clauses(n, SUBTBLNAME)
+                mdls.append(fld.model)
+                joins += fld.sql_joins(n, SUBTBLNAME)
             elif isinstance(fld, Field):
                 fldnames.append('"%s"."%s"' % (SUBTBLNAME, n))
                 mdls.append(None)
