@@ -1183,9 +1183,6 @@ class Model(object):
     def select(cls, *args, **kw): return QuerySet(cls).select(*args, **kw)
 
     @classmethod
-    def proto_select(cls, *args, **kw): return QuerySet(cls).proto_select(*args, **kw)
-
-    @classmethod
     def create(cls, **kw):
         """Creating new record"""
         names = []
