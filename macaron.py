@@ -1008,8 +1008,6 @@ class QuerySet(object):
                     asname = "%s.%s" % (curname, item)
                     newset.clauses["joins"] += fld.sql_joins(asname, curname)
                     curmdl = fld.model
-#                    curmdl, joins = fld.join_clauses(asname, curname)
-#                    newset.clauses["joins"] += joins
                     curname = asname
                 elif isinstance(fld, Field):
                     break
@@ -1076,8 +1074,6 @@ class QuerySet(object):
             fld = self.cls.__dict__[n]
             if callable(getattr(fld, "sql_joins", None)):
                 fldnames.append('"%s".*' % n)
-#                join_clauses = fld.sql_joins(n, SUBTBLNAME)
-#                mdl, join_clauses = fld.join_clauses(n, SUBTBLNAME)
                 mdls.append(fld.model)
                 joins += fld.sql_joins(n, SUBTBLNAME)
             elif isinstance(fld, Field):
