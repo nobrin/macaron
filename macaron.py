@@ -647,7 +647,7 @@ class ManyToOne(Field):
         self.on_update = on_update
         _pre_field_order.append(self)
 
-    def set_query(self, query_set, tblname, name):
+    def o_set_query(self, query_set, tblname, name):
         """
         h = {
             "reftbl": self.ref._meta.table_name,
@@ -735,7 +735,7 @@ class _ManyToOne_Rev(property):
         self.rev_fkey = rev_fkey    # Foreign key name of child
         assert self.rev_fkey, "Foreign key was not specified in ManyToOne#_called_in_modelmeta_init"
 
-    def set_query(self, query_set, tblname, name):
+    def o_set_query(self, query_set, tblname, name):
         # Generate INNER JOIN-ed clause
         """
         h = {
@@ -783,7 +783,7 @@ class _ManyToManyBase(property):
         self.cls = cls
         self.name = name
 
-    def set_query(self, query_set, tblname, name):
+    def o_set_query(self, query_set, tblname, name):
         """
         h = {
             "clstbl": tblname,
@@ -842,50 +842,6 @@ class ManyToMany(_ManyToManyBase):
     def __init__(self, ref, related_name=None, lnk=None):
         super(ManyToMany, self).__init__(ref, lnk=lnk)
         self.related_name = related_name
-
-    def o_set_query(self, query_set, tblname, name):
-        """
-        h = {
-            "clstbl": tblname,
-            "clskey": self.cls._meta.primary_key.name,
-            "reftbl": self.ref._meta.table_name,
-            "refkey": self.ref._meta.primary_key.name,
-            "lnktbl": self.lnk._meta.table_name,
-            "fldname": "%s.%s" % (tblname, name),
-        }
-        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
-        h["lnkrefkey"] = "%s_id" % h["reftbl"]
-        query_set.clauses["joins"].append(
-            'INNER JOIN "%(lnktbl)s" AS "%(fldname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(fldname)s.lnk"."%(lnkclskey)s"' % h
-        )
-        query_set.clauses["joins"].append(
-            'INNER JOIN "%(reftbl)s" AS "%(fldname)s" ON "%(fldname)s.lnk"."%(lnkrefkey)s" = "%(fldname)s"."%(refkey)s"' % h
-        )
-        return self.ref, h["fldname"]
-        """
-        asname = "%s.%s" % (tblname, name)
-        mdl, joins = self.join_clauses(asname, tblname)
-        query_set.clauses["joins"] += joins
-        return mdl, asname
-
-    def o_join_clauses(self, asname, tblname=None):
-        # as_name specifies referred table synonym.
-        # tblname specifies the table which referres reference table.
-        h = {
-            "clstbl": tblname,
-            "clskey": self.cls._meta.primary_key.name,
-            "reftbl": self.ref._meta.table_name,
-            "refkey": self.ref._meta.primary_key.name,
-            "lnktbl": self.lnk._meta.table_name,
-            "asname": asname,
-        }
-        h["lnkclskey"] = "%s_id" % self.cls._meta.table_name
-        h["lnkrefkey"] = "%s_id" % h["reftbl"]
-        joins = [
-            'INNER JOIN "%(lnktbl)s" AS "%(asname)s.lnk" ON "%(clstbl)s"."%(clskey)s" = "%(asname)s.lnk"."%(lnkclskey)s"' % h,
-            'INNER JOIN "%(reftbl)s" AS "%(asname)s" ON "%(asname)s.lnk"."%(lnkrefkey)s" = "%(asname)s"."%(refkey)s"' % h,
-        ]
-        return self.ref, joins
 
     def _called_in_modelmeta_init(self, cls, fld_name):
         # This method will be called in ModelMeta#__init__().
@@ -1039,9 +995,12 @@ class QuerySet(object):
             while items:
                 item = items.pop(0)
                 fld = curmdl.__dict__[item]
-                if callable(getattr(fld, "set_query", None)):
+                if callable(getattr(fld, "join_clauses", None)):
                     # Fields of ManyToOne, _ManyToOne_Rev, ManyToMany
-                    curmdl, curname = fld.set_query(newset, curname, item)
+                    asname = "%s.%s" % (curname, item)
+                    curmdl, joins = fld.join_clauses(asname, curname)
+                    newset.clauses["joins"] += joins
+                    curname = asname
                 elif isinstance(fld, Field):
                     break
                 else:
