@@ -221,7 +221,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(len(members), 1)
         self.assertEqual(members[0].curename, "Fortune")
 
-    def test_get_specified_field_m2o_m2m(self):
+    def test_get_specified_fields_m2o_m2m(self):
         sql  = 'SELECT "%(tbl)s"."curename", "mygroup".*, "subgroup".*, "movies".* FROM (\n'
         sql += 'SELECT "member".* FROM "member"\n'
         sql += ') AS "%(tbl)s"\n'
@@ -252,7 +252,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs_tpl[0], (u"Happy", Group.get(1), Group.get(2), Movie.get(1)))
         self.assertEqual(qs_tpl[1], (u"Fortune", Group.get(3), Group.get(4), Movie.get(2)))
 
-    def test_get_specified_field_m2orev(self):
+    def test_get_specified_fields_m2orev(self):
         sql  = 'SELECT "%(tbl)s"."name", "groups".* FROM (\n'
         sql += 'SELECT "series".* FROM "series"\n'
         sql += ') AS "%(tbl)s"\n'
@@ -283,7 +283,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs_tpl[2], (u"Happiness Charge Precure", Group.get(3)))
         self.assertEqual(qs_tpl[3], (u"Happiness Charge Precure", Group.get(4)))
 
-    def test_get_specified_field_m2mrev(self):
+    def test_get_specified_fields_m2mrev(self):
         sql  = 'SELECT "%(tbl)s"."title", "members".* FROM (\n'
         sql += 'SELECT "movie".* FROM "movie"\n'
         sql += ') AS "%(tbl)s"\n'
@@ -305,6 +305,39 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertTrue(isinstance(qs_tpl[0], tuple))
         self.assertEqual(qs_tpl[0], (u"NewStage", Member.get(1)))
         self.assertEqual(qs_tpl[1], (u"NewStage2", Member.get(2)))
+
+    def test_get_single_field_m2o_m2m(self):
+        qs = Member.all().field("curename")
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0], u"Happy")
+        self.assertEqual(qs[1], u"Fortune")
+
+        qs = Member.all().field("mygroup")
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0], Group.get(1))
+        self.assertEqual(qs[1], Group.get(3))
+
+    def test_get_single_field_m2orev(self):
+        qs = Series.all().field("name")
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0], u"Smile Precure")
+        self.assertEqual(qs[1], u"Happiness Charge Precure")
+
+        qs = Series.all().field("groups")
+        self.assertEqual(qs.count(), 4)
+        self.assertEqual(qs[0], Group.get(1))
+        self.assertEqual(qs[1], Group.get(2))
+        self.assertEqual(qs[2], Group.get(3))
+        self.assertEqual(qs[3], Group.get(4))
+
+    def test_get_single_field_m2mrev(self):
+        qs = Movie.all().field("title")
+        self.assertEqual(qs[0], u"NewStage")
+        self.assertEqual(qs[1], u"NewStage2")
+
+        qs = Movie.all().field("members")
+        self.assertEqual(qs[0], Member.get(1))
+        self.assertEqual(qs[1], Member.get(2))
 
 if __name__ == "__main__":
     unittest.main()

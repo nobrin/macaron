@@ -877,7 +877,6 @@ class QuerySet(object):
             self.cls = parent.cls
             self.clauses = copy.deepcopy(parent.clauses)
             self.factory = parent.factory   # Factory method converting record to object
-            self.wrapper_clause = parent.wrapper_clause
         else:
             self.cls = parent
             self.clauses = {"type":"SELECT", "joins":[], "where":[], "order_by":[], "values":[], "distinct":False}
@@ -886,7 +885,7 @@ class QuerySet(object):
             self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
             self.factory = self.cls._factory
             self.clauses["select_fields"] = '"%s".*' % self.cls.__dict__["_meta"].table_name
-            self.wrapper_clause = None
+        self.wrapper_clause = None
         self.parent = parent
         self._initialize_cursor()
         self.subquery_serial = 1  # for subquery table name("%x_%d" % (hash(self), self.subquery_serial))
@@ -914,8 +913,19 @@ class QuerySet(object):
         if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
         if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
 
-        if self.wrapper_clause:
-            return self.wrapper_clause % "\n".join(sqls)
+        # processing wrapper_clause
+        qs = self
+        wrappers = []
+        while isinstance(qs, self.__class__):
+            if qs.wrapper_clause:
+                wrappers.append(qs.wrapper_clause)
+            qs = qs.parent
+
+        if wrappers:
+            sql = "\n".join(sqls)
+            for w in reversed(wrappers):
+                sql = w % sql
+            return sql
 
         return "\n".join(sqls)
 
@@ -1064,6 +1074,10 @@ class QuerySet(object):
         name = "__t%x_%d" % (hash(self), self.subquery_serial)
         self.subquery_serial += 1
         return name
+
+    def field(self, fldname):
+        # Get single field with tuple
+        return self._get_fields(lambda o: o[0][1], fldname)
 
     def fields(self, *args):
         # Get fields with dict
