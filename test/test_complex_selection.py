@@ -339,6 +339,17 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs[0], Member.get(1))
         self.assertEqual(qs[1], Member.get(2))
 
+    def test_get_single_field_m2o_m2m_with_getitem(self):
+        qs = Member.all()["curename"]
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0], u"Happy")
+        self.assertEqual(qs[1], u"Fortune")
+
+        qs = Member.all()["mygroup"]
+        self.assertEqual(qs.count(), 2)
+        self.assertEqual(qs[0], Group.get(1))
+        self.assertEqual(qs[1], Group.get(3))
+
 if __name__ == "__main__":
     unittest.main()
 

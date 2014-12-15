@@ -1150,6 +1150,8 @@ class QuerySet(object):
                     raise ValueError("Slice stop must be larger than start value.[start:%d,stop:%d]" % (start, stop))
                 else: newset.clauses["limit"] = stop - start
             return newset
+        elif isinstance(index, str):
+            return newset.field(index)
         elif self._index >= index:
             return self._cache[index]
 
