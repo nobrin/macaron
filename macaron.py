@@ -889,6 +889,7 @@ class QuerySet(object):
             self.wrapper_clause = None
         self.parent = parent
         self._initialize_cursor()
+        self.subquery_serial = 1  # for subquery table name("%x_%d" % (hash(self), self.subquery_serial))
 
     def _initialize_cursor(self):
         """Cleaning cache and state"""
@@ -1058,8 +1059,14 @@ class QuerySet(object):
         newset.clauses["limit"] = -1    # When only offset is set, SQL syntax error is caused.
         return newset
 
+    def _get_subquery_table_name(self):
+        # Generate table name for subqueries
+        name = "__t%x_%d" % (hash(self), self.subquery_serial)
+        self.subquery_serial += 1
+        return name
+
     def fields(self, *args):
-        SUBTBLNAME = "__t1"
+        SUBTBLNAME = self._get_subquery_table_name()
         newset = self.__class__(self)
         fldnames = []
         names = []
@@ -1123,7 +1130,9 @@ class QuerySet(object):
                     raise ValueError("Slice stop must be larger than start value.[start:%d,stop:%d]" % (start, stop))
                 else: newset.clauses["limit"] = stop - start
             return newset
-        elif self._index >= index: return self._cache[index]
+        elif self._index >= index:
+            return self._cache[index]
+
         for obj in self:
             if self._index >= index: return obj
 
