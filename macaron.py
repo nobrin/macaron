@@ -1066,11 +1066,18 @@ class QuerySet(object):
         return name
 
     def fields(self, *args):
+        # Get fields with dict
+        return self._get_fields(dict, *args)
+
+    def fields_tuple(self, *args):
+        # Get fields with tuple
+        return self._get_fields(lambda o: tuple(v[1] for v in o), *args)
+
+    def _get_fields(self, convfunc, *args):
         SUBTBLNAME = self._get_subquery_table_name()
         newset = self.__class__(self)
         fldnames = []
-        names = []
-        mdls = []
+        mdls = []   # (fieldname, modeltype)
         joins = []
 
         for n in args:
@@ -1080,22 +1087,21 @@ class QuerySet(object):
             fld = self.cls.__dict__[n]
             if callable(getattr(fld, "sql_joins", None)):
                 fldnames.append('"%s".*' % n)
-                mdls.append(fld.model)
+                mdls.append((n, fld.model))
                 joins += fld.sql_joins(n, SUBTBLNAME)
             elif isinstance(fld, Field):
                 fldnames.append('"%s"."%s"' % (SUBTBLNAME, n))
-                mdls.append(None)
+                mdls.append((n, None))
             else:
                 raise TypeError("Field %s.%s is not a field." % (self.cls.__name__, n))
 
-            names.append(n)
-
-        def _tuple_factory(cur, row):
-            obj = {}
+        def _factory(cur, row):
+            # closure with mdls, convfunc
+            obj = []
             values = list(row)
             desc = list(cur.description)
             for idx in range(0, len(mdls)):
-                mdl = mdls[idx]
+                nm, mdl = mdls[idx]
                 if mdl:
                     mdldesc = desc[:len(mdl._meta.fields)]
                     h1 = dict([[d[0], values[i]] for i, d in enumerate(mdldesc)])
@@ -1104,14 +1110,14 @@ class QuerySet(object):
                         h2[fld.name] = fld.to_object(sqlite3.Row(cur, tuple(values)), h1[fld.name])
                     values = values[len(h2):]
                     desc = desc[len(mdl._meta.fields):]
-                    obj[names[idx]] = mdl(**h2)
+                    obj.append((nm, mdl(**h2)))
                 else:
-                    obj[names[idx]] = values.pop(0)
+                    obj.append((nm, values.pop(0)))
                     desc.pop(0)
             assert len(values) == 0
-            return obj
+            return convfunc(obj)    # return value which is converted by convfunc()
 
-        newset.factory = _tuple_factory
+        newset.factory = _factory
         newset.wrapper_clause = 'SELECT %s FROM (\n%%s\n) AS "%s"\n' % (", ".join(fldnames), SUBTBLNAME)
         newset.wrapper_clause += "\n".join(joins)
         return newset

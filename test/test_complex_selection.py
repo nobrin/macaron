@@ -238,13 +238,19 @@ class ComplexSelectionTestCase(unittest.TestCase):
 
         self.assertEqual(qs[0]["mygroup"], Group.get(1))
         self.assertEqual(qs[0]["movies"], Movie.get(1))
-        self.assertEqual(qs[0]["curename"], "Happy")
+        self.assertEqual(qs[0]["curename"], u"Happy")
         self.assertEqual(qs[0]["subgroup"], Group.get(2))
 
         self.assertEqual(qs[1]["mygroup"], Group.get(3))
         self.assertEqual(qs[1]["movies"], Movie.get(2))
-        self.assertEqual(qs[1]["curename"], "Fortune")
+        self.assertEqual(qs[1]["curename"], u"Fortune")
         self.assertEqual(qs[1]["subgroup"], Group.get(4))
+
+        # with tuple
+        qs_tpl = Member.all().fields_tuple("curename", "mygroup", "subgroup", "movies")
+        self.assertTrue(isinstance(qs_tpl[0], tuple))
+        self.assertEqual(qs_tpl[0], (u"Happy", Group.get(1), Group.get(2), Movie.get(1)))
+        self.assertEqual(qs_tpl[1], (u"Fortune", Group.get(3), Group.get(4), Movie.get(2)))
 
     def test_get_specified_field_m2orev(self):
         sql  = 'SELECT "%(tbl)s"."name", "groups".* FROM (\n'
@@ -257,17 +263,25 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertTrue(m)
         self.assertEqual(qs.sql, sql % {"tbl":m.group(0)})
 
-        self.assertEqual(qs[0]["name"], "Smile Precure")
+        self.assertEqual(qs[0]["name"], u"Smile Precure")
         self.assertEqual(qs[0]["groups"], Group.get(1))
 
-        self.assertEqual(qs[1]["name"], "Smile Precure")
+        self.assertEqual(qs[1]["name"], u"Smile Precure")
         self.assertEqual(qs[1]["groups"], Group.get(2))
 
-        self.assertEqual(qs[2]["name"], "Happiness Charge Precure")
+        self.assertEqual(qs[2]["name"], u"Happiness Charge Precure")
         self.assertEqual(qs[2]["groups"], Group.get(3))
 
-        self.assertEqual(qs[3]["name"], "Happiness Charge Precure")
+        self.assertEqual(qs[3]["name"], u"Happiness Charge Precure")
         self.assertEqual(qs[3]["groups"], Group.get(4))
+
+        # with tuple
+        qs_tpl = Series.all().fields_tuple("name", "groups")
+        self.assertTrue(isinstance(qs_tpl[0], tuple))
+        self.assertEqual(qs_tpl[0], (u"Smile Precure", Group.get(1)))
+        self.assertEqual(qs_tpl[1], (u"Smile Precure", Group.get(2)))
+        self.assertEqual(qs_tpl[2], (u"Happiness Charge Precure", Group.get(3)))
+        self.assertEqual(qs_tpl[3], (u"Happiness Charge Precure", Group.get(4)))
 
     def test_get_specified_field_m2mrev(self):
         sql  = 'SELECT "%(tbl)s"."title", "members".* FROM (\n'
@@ -281,10 +295,16 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertTrue(m)
         self.assertEqual(qs.sql, sql % {"tbl":m.group(0)})
 
-        self.assertEqual(qs[0]["title"], "NewStage")
+        self.assertEqual(qs[0]["title"], u"NewStage")
         self.assertEqual(qs[0]["members"], Member.get(1))
-        self.assertEqual(qs[1]["title"], "NewStage2")
+        self.assertEqual(qs[1]["title"], u"NewStage2")
         self.assertEqual(qs[1]["members"], Member.get(2))
+
+        # with tuple
+        qs_tpl = Movie.all().fields_tuple("title", "members")
+        self.assertTrue(isinstance(qs_tpl[0], tuple))
+        self.assertEqual(qs_tpl[0], (u"NewStage", Member.get(1)))
+        self.assertEqual(qs_tpl[1], (u"NewStage2", Member.get(2)))
 
 if __name__ == "__main__":
     unittest.main()
