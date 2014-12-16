@@ -1040,6 +1040,12 @@ class QuerySet(object):
     def all(self):
         return self.select()
 
+    def join(self, *names):
+        newset = self.__class__(self)
+        for name in names:
+            newset._parse_field_name(name)
+        return newset
+
     def order_by(self, *names):
         newset = self.__class__(self)
         for name in names:
@@ -1070,10 +1076,15 @@ class QuerySet(object):
             raise TypeError("fields() got an un expected keyword argument(s) '%s'" % ", ".join(kw.keys()))
 
         for name in names:
-            curname, fld, op = newset._parse_field_name(name)
-            if hasattr(fld, "model"): info = ('"%s".*' % curname, fld.model)
-            else: info = ('"%s"."%s"' % (curname, fld.name), None)
-            newset.select_fields.append(info)
+            if isinstance(name, AggregateFunction):
+                curname, fld, op = newset._parse_field_name(name.field_name)
+                fldname = '"%s"."%s"' % (curname, fld.name)
+                newset.select_fields.append(("%s(%s)" % (name.name, fldname), None))
+            else:
+                curname, fld, op = newset._parse_field_name(name)
+                if hasattr(fld, "model"): info = ('"%s".*' % curname, fld.model)
+                else: info = ('"%s"."%s"' % (curname, fld.name), None)
+                newset.select_fields.append(info)
 
         return newset
 
