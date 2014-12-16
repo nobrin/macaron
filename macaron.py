@@ -1441,7 +1441,7 @@ class Count(AggregateFunction): name = "COUNT"
 # --- Converter for operators
 class OpConverter(object):
     CONV = {
-        "lt": "<", "le": "<=", "ge": ">=", "gt": ">",
+        "lt": "<", "le": "<=", "ge": ">=", "gt": ">", "ne": "<>",
         "like": "LIKE", "glob": "GLOB", "regexp": "REGEXP",
     }
     def __init__(self, tblname): self.tblname = tblname

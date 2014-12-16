@@ -75,6 +75,14 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
+    def test_ne(self):
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'WHERE ((("member"."curename" <> ?)))'
+        qs = Member.select(curename__ne="Fortune")
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs.count(), 1)
+        for rec in qs: self.assertEqual(rec.curename, "Happy")
+
     def test_regexp(self):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
