@@ -924,7 +924,7 @@ class QuerySet(object):
 
     def _get_subquery_table_name(self):
         # Generate table name for subqueries
-        name = "__t%x_%d" % (hash(self), self.subquery_serial)
+        name = "__t%x_%d" % (abs(hash(self)), self.subquery_serial)
         self.subquery_serial += 1
         return name
 
@@ -1077,8 +1077,11 @@ class QuerySet(object):
 
         for name in names:
             if isinstance(name, AggregateFunction):
-                curname, fld, op = newset._parse_field_name(name.field_name)
-                fldname = '"%s"."%s"' % (curname, fld.name)
+                if name.field_name == "*":
+                    fldname = "*"
+                else:
+                    curname, fld, op = newset._parse_field_name(name.field_name)
+                    fldname = '"%s"."%s"' % (curname, fld.name)
                 newset.select_fields.append(("%s(%s)" % (name.name, fldname), None))
             else:
                 curname, fld, op = newset._parse_field_name(name)
@@ -1142,6 +1145,12 @@ class QuerySet(object):
         return newset.next()
 
     def count(self):
+        # Using field(Count("*")).offset(2) will generate this,
+        #     SELECT COUNT(*) FROM "member"
+        #     ORDER BY "member"."id"
+        #     LIMIT -1
+        #     OFFSET 2
+        # So, aggregate() is required.
         return self.aggregate(Count("*"))
 
     def __str__(self):
