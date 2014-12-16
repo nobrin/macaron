@@ -1047,6 +1047,7 @@ class QuerySet(object):
             if name.startswith("-"):
                 desc = " DESC"
                 name = name[1:]
+            name = name.replace(".", "__")
             curname, fld, op = newset._parse_field_name(name)
 
             if op is not None:
@@ -1139,7 +1140,7 @@ class QuerySet(object):
 class _Qraw(object):
     def __init__(self, sql, prms=None):
         self.sql = sql
-        self.prms = prms[:]
+        self.prms = prms[:] if isinstance(prms, (list, tuple, set)) else [prms]
 
     def __and__(self, other): return _Qlst("AND", self, other)
     def __or__(self, other): return _Qlst("OR", self, other)
