@@ -871,100 +871,98 @@ class ManyToMany(_ManyToManyBase):
 
 # --- QuerySet
 class QuerySet(object):
-    """This class generates SQL which like QuerySet in Django"""
     def __init__(self, parent):
         if isinstance(parent, QuerySet):
             self.cls = parent.cls
             self.clauses = copy.deepcopy(parent.clauses)
-            self.factory = parent.factory   # Factory method converting record to object
+            self.select_fields = parent.select_fields[:]
+            self.joins = parent.joins.copy()
+            self.convfunc = parent.convfunc
+            self.wrappers = parent.wrappers[:]
         else:
             self.cls = parent
-            self.clauses = {"type":"SELECT", "joins":[], "where":[], "order_by":[], "values":[], "distinct":False}
-            self.clauses["offset"] = None
+            self.clauses = {"type":"SELECT", "where":[], "order_by":[], "values":[], "distinct":False}
             self.clauses["limit"] = None
-            self.clauses["order_by"] = self._convert_order_fields(parent.__dict__["_meta"].ordering)
-            self.factory = self.cls._factory
-            self.clauses["select_fields"] = '"%s".*' % self.cls.__dict__["_meta"].table_name
-        self.wrapper_clause = None
+            self.clauses["offset"] = None
+            self.select_fields = [('"%s".*' % self.cls._meta.table_name, self.cls)]
+            self.joins = {}
+            self.convfunc = lambda tpl: tpl[0]
+            self.wrappers = []
+        self.factory = self._to_objects
         self.parent = parent
+        self.subquery_serial = 1    # for subquery table name("%x_%d" % (hash(self), self.subquery_serial))
         self._initialize_cursor()
-        self.subquery_serial = 1  # for subquery table name("%x_%d" % (hash(self), self.subquery_serial))
 
     def _initialize_cursor(self):
-        """Cleaning cache and state"""
-        self.cur = None     # cursor
-        self._index = -1    # pointer
-        self._cache = []    # cache list
+        """Clear cache and state"""
+        self.cur = None     # Cursor
+        self._index = -1    # Pointer
+        self._cache = []    # Cache list
 
-    def _generate_sql(self):
-        # To delete: wrapper_clause is set to DELETE...
-        if self.clauses["distinct"]: distinct = "DISTINCT "
-        else: distinct = ""
+    def _parse_field_name(self, name):
+        # Parse name and join table if needed
+        curmdl  = self.cls
+        curname = self.cls._meta.table_name
+        items = name.split("__")
+        while items:
+            item = items.pop(0)
+            fld = curmdl.__dict__[item]
+            if callable(getattr(fld, "sql_joins", None)):
+                asname = "%s.%s" % (curname, item)
+                self.joins[asname] = fld.sql_joins(asname, curname)
+                curmdl = fld.model
+                curname = asname
+            elif isinstance(fld, Field):
+                break
+            else:
+                raise RuntimeError("POO!!")
 
-        sqls = ['SELECT %s%s FROM "%s"' % (distinct, self.clauses["select_fields"], self.cls._meta.table_name)]
+        if len(items) >= 2:
+            raise RuntimeError("Invalid operand name. '%s'" % "__".join(items))
 
-        if len(self.clauses["joins"]): sqls += self.clauses["joins"]
+        return curname, fld, items[0] if len(items) else None
 
-        if len(self.clauses["where"]):
-            sqls.append("WHERE %s" % " AND ".join(["(%s)" % c for c in self.clauses["where"]]))
+    def _get_subquery_table_name(self):
+        # Generate table name for subqueries
+        name = "__t%x_%d" % (hash(self), self.subquery_serial)
+        self.subquery_serial += 1
+        return name
 
-        if len(self.clauses["order_by"]):
-            sqls.append('ORDER BY %s' % ', '.join(self.clauses["order_by"]))
-        if self.clauses["limit"] is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
+    @property
+    def sql(self):
+        tbl = self.cls._meta.table_name
+
+        if self.clauses["type"] == "DELETE":
+            sqls = ['DELETE FROM "%s"' % tbl]
+        else:
+            flds = [tpl[0] for tpl in self.select_fields[:]]
+            distinct = " DISTINCT" if self.clauses["distinct"] else ""  # DISTINCT clause
+            sqls = ['SELECT%s %s FROM "%s"' % (distinct, ", ".join(flds), tbl)]
+
+        # JOIN clause
+        keys = sorted(self.joins.keys(), key=lambda name: len(name.split(".")))
+        for k in keys: sqls += self.joins[k]
+
+        # WHERE clause
+        if self.clauses["where"]:
+            sqls.append("WHERE %s" % " AND ".join(["(%s)" % w for w in self.clauses["where"]]))
+
+        # ORDER BY clause
+        if self.clauses["order_by"]:
+            sqls.append("ORDER BY %s" % ", ".join(self.clauses["order_by"]))
+
+        # LIMIT, OFFSET clauses
+        if self.clauses["limit"]  is not None: sqls.append("LIMIT %d" % self.clauses["limit"])
         if self.clauses["offset"] is not None: sqls.append("OFFSET %d" % self.clauses["offset"])
 
-        # processing wrapper_clause
-        qs = self
-        wrappers = []
-        while isinstance(qs, self.__class__):
-            if qs.wrapper_clause:
-                wrappers.append(qs.wrapper_clause)
-            qs = qs.parent
-
-        if wrappers:
+        # wrapper_clause for aggregation
+        if self.wrappers:
             sql = "\n".join(sqls)
-            for w in reversed(wrappers):
-                sql = w % sql
+            for wrap in self.wrappers:
+                sql = wrap % sql
             return sql
 
         return "\n".join(sqls)
-
-    sql = property(_generate_sql)   #: Generating SQL
-
-    def _execute(self):
-        """Getting and setting a new cursor"""
-        self._initialize_cursor()
-        self.cur = self.cls._meta._conn.cursor().execute(self.sql, self.clauses["values"])
-
-    def _convert_order_fields(self, fields):
-        """Convert order ['-id', 'name'] to ['"id" DESC', '"name"']"""
-        def conv(m):
-            fldname = m.group(1)
-            res = '"%s"."%s"' % (m.group(1), m.group(2))
-            fld = self.cls.__dict__.get(fldname, "None")
-            if not fld: return res
-#            h = {"as":fldname, "me":self.cls._meta.table_name, "me_key":self.cls._meta.primary_key.name}
-            h = {"as":fldname, "me":self.cls._meta.table_name, "me_key":fld.fkey}
-            if isinstance(fld, ManyToOne):
-                h["ref"] = fld.ref._meta.table_name
-                h["refkey"] = fld.ref_key
-            elif isinstance(fld, _ManyToOne_Rev):
-                self.clauses["distinct"] = True
-                h["ref"] = fld.rev._meta.table_name
-                h["refkey"] = fld.rev_fkey
-            else: return res
-            fmt = 'INNER JOIN "%(ref)s" AS "%(as)s" ON "%(me)s"."%(me_key)s" = "%(as)s"."%(refkey)s"'
-            self.clauses["joins"].append(fmt % h)
-            return res
-
-        res = []
-        for n in fields:
-            desc = ""
-            if n.startswith("-"): n, desc = n[1:], " DESC"
-            if re.match(r"(\w+)\.(\w+)", n): n = re.sub(r"(\w+)\.(\w+)", conv, n)
-            else: n = '"%s"' % n
-            res.append('%s%s' % (n, desc))
-        return res
 
     def __iter__(self):
         self._execute()
@@ -978,9 +976,43 @@ class QuerySet(object):
         self._cache.append(self.factory(self.cur, row))
         return self._cache[-1]
 
+    def _execute(self):
+        """Getting and setting a new cursor"""
+        self._initialize_cursor()
+        self.cur = execute(self.sql, self.clauses["values"])
+
+    def _to_objects(self, cur, row):
+        objs = []
+        values = list(row)
+        desc = list(cur.description)
+        mdls = [tpl[1] for tpl in self.select_fields[:]]
+        for idx in range(0, len(mdls)):
+            mdl = mdls[idx]
+            if mdl:
+                # TODO: Modify or delete Model._factory()
+                mdldesc = desc[:len(mdl._meta.fields)]
+                h1 = dict([[d[0], values[i]] for i, d in enumerate(mdldesc)])
+                h2 = {} # for create a new model object
+                for fld in mdl._meta.fields:
+                    h2[fld.name] = fld.to_object(sqlite3.Row(cur, tuple(values)), h1[fld.name])
+                values = values[len(h2):]
+                desc = desc[len(mdl._meta.fields):]
+                objs.append(mdl(**h2))
+            else:
+                objs.append(values.pop(0))
+                desc.pop(0)
+        assert len(values) == 0
+        return self.convfunc(tuple(objs))
+
+    def delete(self):
+        h = {"tbl": self.cls._meta.table_name, "pk": self.cls._meta.primary_key.name}
+        self.wrappers.append('DELETE FROM "%(tbl)s" WHERE "%(pk)s" IN (SELECT "%(pk)s" FROM (\n%%s\n))' %h)
+        self._execute()
+
     def get(self, *args, **kw):
         if len(args) == 1:
-            args = ('"%s" = ?' % self.cls._meta.primary_key.name, args[0])
+            kw[self.cls._meta.primary_key.name] = args[0]
+            args = ()
         qs = self.select(*args, **kw)
         try: obj = qs.next()
         except StopIteration: raise self.cls.DoesNotExist("%s object is not found." % self.cls.__name__)
@@ -990,72 +1022,63 @@ class QuerySet(object):
 
     def select(self, *args, **kw):
         newset = self.__class__(self)
-        if len(args) == 1:
-            newset.clauses["where"].append(args[0])
-        elif len(args) == 2:
-            newset.clauses["where"].append(args[0])
-            if isinstance(args[1], (list, tuple)): newset.clauses["values"] += list(args[1])
-            else: newset.clauses["values"].append(args[1])
-        elif len(args) > 2:
-            raise RuntimeError("arg1 must be primary key value or arg1, arg2 must be where and values.")
+        if args and isinstance(args[0], str):
+            # SQL specified
+            if len(args) > 2:
+                raise RuntimeError("When arg1 is SQL, arg2 must be tuple or list.")
+            args = (_Qraw(*args),)
 
-        # Parse keywords
-        for k, v in kw.items():
-            curmdl = self.cls
-            curname = self.cls._meta.table_name
-
-            if isinstance(v, Model):
-                # Specified with Model object
-                k += "__%s" % v._meta.primary_key.name
-                v = v.pk
-
-            items = k.split("__")
-            while items:
-                item = items.pop(0)
-                fld = curmdl.__dict__[item]
-                if callable(getattr(fld, "sql_joins", None)):
-                    # Fields of ManyToOne, _ManyToOne_Rev, ManyToMany
-                    asname = "%s.%s" % (curname, item)
-                    newset.clauses["joins"] += fld.sql_joins(asname, curname)
-                    curmdl = fld.model
-                    curname = asname
-                elif isinstance(fld, Field):
-                    break
-                else:
-                    raise RuntimeError("Invalid column name. '%s(%s)'" % (item, fld.__class__.__name__))
-
-            # Convert field name and value
-            if len(items) >= 2:
-                raise RuntimeError("Invalid operand name. '%s'" % "__".join(items))
-
-            # Parsing inline operator
-            opc = OpConverter(curname)
-            whr, prm = opc.get_clause(items[0] if items else None, fld, v)
+        if args or kw:
+            ql = _Qlst("AND", *args)
+            if kw: ql.append(Q(kw))
+            whr, prms = ql.to_sql(newset)
             newset.clauses["where"].append(whr)
-            if prm is not None:
-                if isinstance(prm, (list, tuple)): newset.clauses["values"] += list(prm)
-                else: newset.clauses["values"].append(prm)
+            newset.clauses["values"] += prms
 
         return newset
 
     def all(self):
         return self.select()
 
-    def delete(self):
-        self.clauses["type"] = "DELETE"
-        h = {"tbl": self.cls._meta.table_name, "pk": self.cls._meta.primary_key.name}
-        self.wrapper_clause = 'DELETE FROM "%(tbl)s" WHERE "%(pk)s" IN (SELECT "%(pk)s" FROM (\n%%s\n))' % h
-        self._execute()
+    def order_by(self, *names):
+        newset = self.__class__(self)
+        for name in names:
+            desc = ""
+            if name.startswith("-"):
+                desc = " DESC"
+                name = name[1:]
+            curname, fld, op = newset._parse_field_name(name)
+
+            if op is not None:
+                raise RuntimeError("Invalid order field name. '%s'" % name)
+
+            # If fld is ManyToOne, ManyToMany, _ManyToOne_Rev,
+            # use the name of primary key field
+            fname = fld.model._meta.primary_key.name if hasattr(fld, "model") else fld.name
+            newset.clauses["order_by"].append('"%s"."%s"%s' % (curname, fname, desc))
+        return newset
+
+    def field(self, name):
+        return self.fields(name, conv=lambda tpl: tpl[0])
+
+    def fields(self, *names, **kw):
+        newset = self.__class__(self)
+        newset.select_fields = []
+        newset.convfunc = kw.pop("conv", lambda tpl: tpl)
+        if len(kw):
+            raise TypeError("fields() got an un expected keyword argument(s) '%s'" % ", ".join(kw.keys()))
+
+        for name in names:
+            curname, fld, op = newset._parse_field_name(name)
+            if hasattr(fld, "model"): info = ('"%s".*' % curname, fld.model)
+            else: info = ('"%s"."%s"' % (curname, fld.name), None)
+            newset.select_fields.append(info)
+
+        return newset
 
     def distinct(self):
         newset = self.__class__(self)
         newset.clauses["distinct"] = True
-        return newset
-
-    def order_by(self, *args):
-        newset = self.__class__(self)
-#        newset.clauses["order_by"] += [re.sub(r"^-(.+)$", r"\1 DESC", n) for n in args]
-        newset.clauses["order_by"] += newset._convert_order_fields(args)
         return newset
 
     def limit(self, limit):
@@ -1066,74 +1089,7 @@ class QuerySet(object):
     def offset(self, offset):
         newset = self.__class__(self)
         newset.clauses["offset"] = int(offset)
-        newset.clauses["limit"] = -1    # When only offset is set, SQL syntax error is caused.
-        return newset
-
-    def _get_subquery_table_name(self):
-        # Generate table name for subqueries
-        name = "__t%x_%d" % (hash(self), self.subquery_serial)
-        self.subquery_serial += 1
-        return name
-
-    def field(self, fldname):
-        # Get single field with tuple
-        return self._get_fields(lambda o: o[0][1], fldname)
-
-    def fields(self, *args):
-        # Get fields with dict
-        return self._get_fields(dict, *args)
-
-    def fields_tuple(self, *args):
-        # Get fields with tuple
-        return self._get_fields(lambda o: tuple(v[1] for v in o), *args)
-
-    def _get_fields(self, convfunc, *args):
-        SUBTBLNAME = self._get_subquery_table_name()
-        newset = self.__class__(self)
-        fldnames = []
-        mdls = []   # (fieldname, modeltype)
-        joins = []
-
-        for n in args:
-            if not self.cls._meta.fields.has_key(n) and not self.cls.__dict__.has_key(n):
-                raise KeyError("Field %s.%s does not exist." % (self.cls.__name__, n))
-
-            fld = self.cls.__dict__[n]
-            if callable(getattr(fld, "sql_joins", None)):
-                fldnames.append('"%s".*' % n)
-                mdls.append((n, fld.model))
-                joins += fld.sql_joins(n, SUBTBLNAME)
-            elif isinstance(fld, Field):
-                fldnames.append('"%s"."%s"' % (SUBTBLNAME, n))
-                mdls.append((n, None))
-            else:
-                raise TypeError("Field %s.%s is not a field." % (self.cls.__name__, n))
-
-        def _factory(cur, row):
-            # closure with mdls, convfunc
-            obj = []
-            values = list(row)
-            desc = list(cur.description)
-            for idx in range(0, len(mdls)):
-                nm, mdl = mdls[idx]
-                if mdl:
-                    mdldesc = desc[:len(mdl._meta.fields)]
-                    h1 = dict([[d[0], values[i]] for i, d in enumerate(mdldesc)])
-                    h2 = {} # for create a new model object
-                    for fld in mdl._meta.fields:
-                        h2[fld.name] = fld.to_object(sqlite3.Row(cur, tuple(values)), h1[fld.name])
-                    values = values[len(h2):]
-                    desc = desc[len(mdl._meta.fields):]
-                    obj.append((nm, mdl(**h2)))
-                else:
-                    obj.append((nm, values.pop(0)))
-                    desc.pop(0)
-            assert len(values) == 0
-            return convfunc(obj)    # return value which is converted by convfunc()
-
-        newset.factory = _factory
-        newset.wrapper_clause = 'SELECT %s FROM (\n%%s\n) AS "%s"\n' % (", ".join(fldnames), SUBTBLNAME)
-        newset.wrapper_clause += "\n".join(joins)
+        newset.clauses["limit"] = newset.clauses["limit"] or -1 # When only offset is set, SQL syntax eror is caused.
         return newset
 
     def __getitem__(self, index):
@@ -1169,8 +1125,7 @@ class QuerySet(object):
         """
         def single_value(cur, row): return row[0]
         newset = self.__class__(self)
-#        newset.clauses["select_fields"] = '%s("%s")' % (agg.name, agg.field_name)
-        newset.wrapper_clause = 'SELECT %s("%s") FROM (\n%%s\n)' % (agg.name, agg.field_name)
+        newset.wrappers.append('SELECT %s("%s") FROM (\n%%s\n) AS %s' % (agg.name, agg.field_name, self._get_subquery_table_name()))
         newset.factory = single_value   # Change factory method for single value
         return newset.next()
 
@@ -1180,6 +1135,61 @@ class QuerySet(object):
     def __str__(self):
         objs = self._cache + [obj for obj in self]
         return str(objs)
+
+class _Qraw(object):
+    def __init__(self, sql, prms=None):
+        self.sql = sql
+        self.prms = prms[:]
+
+    def __and__(self, other): return _Qlst("AND", self, other)
+    def __or__(self, other): return _Qlst("OR", self, other)
+
+    def to_sql(self, qs):
+        return "(%s)" % self.sql, self.prms
+
+class _Qlst(list):
+    """ List for complexed queries """
+    def __init__(self, op, *args):
+        self.op = op    # Operator('AND' or 'OR')
+        self += list(args)
+
+    def __and__(self, other): return _Qlst("AND", self, other)
+    def __or__(self, other):  return _Qlst("OR", self, other)
+
+    def to_sql(self, qs):
+        whrs = []
+        prms = []
+        for q in self:
+            whr, prm = q.to_sql(qs)
+            whrs.append(whr)
+            prms += prm
+        return "(%s)" % (" %s " % self.op).join(whrs), prms
+
+class Q(dict):
+    """ Query element """
+    def __and__(self, other): return _Qlst("AND", self, other)
+    def __or__(self, other):  return _Qlst("OR", self, other)
+
+    def to_sql(self, qs):
+        # Convert to where clause
+        prms = []
+        whrs = []
+        for key, val in sorted(self.items()):
+            curmdl  = qs.cls
+            curname = qs.cls._meta.table_name
+
+            if isinstance(val, Model):
+                key += "__%s" % val._meta.primary_key.name
+                val = val.pk
+
+            curname, fld, op = qs._parse_field_name(key)
+            opc = OpConverter(curname)
+            whr, prm = opc.get_clause(op, fld, val)
+            whrs.append(whr)
+            if prm is not None:
+                if isinstance(prm, (list, tuple)): prms += list(prm)
+                else: prms.append(prm)
+        return "(%s)" % " AND ".join(whrs), prms
 
 class ManyToOneRevSet(QuerySet):
     """Reverse relationship of ManyToOne"""
@@ -1207,12 +1217,12 @@ class ManyToManySet(QuerySet):
         clstbl, cls_id = self.cls._meta.table_name, self.cls._meta.primary_key.name
         reftbl, ref_id = ref._meta.table_name, ref._meta.primary_key.name
         lnktbl, lnkcls_id, lnkref_id = lnk._meta.table_name, "%s_id" % clstbl, "%s_id" % reftbl
-        self.clauses["select_fields"] = '"%s".*' % reftbl
-        self.clauses["joins"] = [
+
+        self.select_fields = [('"%s".*' % reftbl, ref)]
+        self.joins[reftbl] = [
             'INNER JOIN "%s" ON "%s"."%s" = "%s"' % (lnktbl, clstbl, cls_id, lnkcls_id),
             'INNER JOIN "%s" ON "%s" = "%s"."%s"' % (reftbl, lnkref_id, reftbl, ref_id),
         ]
-        self.factory = ref._factory
 
     def append(self, *args, **kw):
         if len(args):

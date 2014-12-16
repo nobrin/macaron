@@ -52,7 +52,8 @@ class ComplexSelectionTestCase(unittest.TestCase):
         macaron.cleanup()
 
     def test_basic_selection(self):
-        sql = 'SELECT "member".* FROM "member"\nWHERE ("member"."curename" = ?)'
+        sql  = 'SELECT "member".* FROM "member"\n'
+        sql += 'WHERE ((("member"."curename" = ?)))'
         qs = Member.select(curename="Happy")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -60,7 +61,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
 
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
-        sql += 'WHERE ("member.mygroup"."id" = ?)'
+        sql += 'WHERE ((("member.mygroup"."id" = ?)))'
         group = Group.get(name="Smile")
         qs = Member.select(mygroup=group)
         self.assertEqual(qs.sql, sql)
@@ -68,7 +69,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
         sql  = 'SELECT "member".* FROM "member"\n'
-        sql += 'WHERE ("member"."joined" = ?)'
+        sql += 'WHERE ((("member"."joined" = ?)))'
         qs = Member.select(joined=datetime(2012, 2, 6))
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -78,7 +79,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
-        sql += 'WHERE ("member.movies"."title" REGEXP ?)'
+        sql += 'WHERE ((("member.movies"."title" REGEXP ?)))'
         qs = Member.select(movies__title__regexp="New.+")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 2)
@@ -89,7 +90,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
-        sql += 'WHERE ("member.movies"."title" IN (?,?,?))'
+        sql += 'WHERE ((("member.movies"."title" IN (?,?,?))))'
         qs = Member.select(movies__title__in=("NewStage", "NewStage2", "Deluxe"))
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 2)
@@ -100,14 +101,14 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
-        sql += 'WHERE ("member.movies"."title" NOT IN (?,?,?))'
+        sql += 'WHERE ((("member.movies"."title" NOT IN (?,?,?))))'
         qs = Member.select(movies__title__not_in=("NewStage", "NewStage2", "Deluxe"))
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 0)
 
     def test_between(self):
         sql  = 'SELECT "member".* FROM "member"\n'
-        sql += 'WHERE ("member"."joined" BETWEEN ? AND ?)'
+        sql += 'WHERE ((("member"."joined" BETWEEN ? AND ?)))'
         qs = Member.select(joined__between=(datetime(2012, 1, 1), datetime(2012, 4, 1)))
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -118,7 +119,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
 
     def test_not_between(self):
         sql  = 'SELECT "member".* FROM "member"\n'
-        sql += 'WHERE ("member"."joined" NOT BETWEEN ? AND ?)'
+        sql += 'WHERE ((("member"."joined" NOT BETWEEN ? AND ?)))'
         qs = Member.select(joined__not_between=(datetime(2012, 1, 1), datetime(2012, 4, 1)))
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -127,7 +128,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
     def test_selection_with_many2one(self):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
-        sql += 'WHERE ("member.mygroup"."name" = ?)'
+        sql += 'WHERE ((("member.mygroup"."name" = ?)))'
         qs = Member.select(mygroup__name="Smile")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -135,16 +136,16 @@ class ComplexSelectionTestCase(unittest.TestCase):
 
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
-        sql += 'WHERE ("member.subgroup"."name" = ?)'
+        sql += 'WHERE ((("member.subgroup"."name" = ?)))'
         qs = Member.select(subgroup__name="Pink")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
         sql  = 'SELECT "member".* FROM "member"\n'
-        sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
         sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
-        sql += 'WHERE ("member.mygroup"."name" = ?) AND ("member.subgroup"."name" = ?)'
+        sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
+        sql += 'WHERE ((("member.mygroup"."name" = ? AND "member.subgroup"."name" = ?)))'
         qs = Member.select(mygroup__name="Smile", subgroup__name="Pink")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -154,7 +155,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
         sql += 'INNER JOIN "series" AS "member.mygroup.series" ON "member.mygroup"."series_id" = "member.mygroup.series"."id"\n'
-        sql += 'WHERE ("member.mygroup.series"."name" = ?)'
+        sql += 'WHERE ((("member.mygroup.series"."name" = ?)))'
         qs = Member.select(mygroup__series__name="Smile Precure")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -164,7 +165,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql  = 'SELECT "member".* FROM "member"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
-        sql += 'WHERE ("member.movies"."title" IN (?))'
+        sql += 'WHERE ((("member.movies"."title" IN (?))))'
         qs = Member.select(movies__title__in=["NewStage"])
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -186,7 +187,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         sql += 'INNER JOIN "member" AS "group.mymembers" ON "group"."id" = "group.mymembers"."mygroup_id"\n'
         sql += 'INNER JOIN "membermovielink" AS "group.mymembers.movies.lnk" ON "group.mymembers"."id" = "group.mymembers.movies.lnk"."member_id"\n'
         sql += 'INNER JOIN "movie" AS "group.mymembers.movies" ON "group.mymembers.movies.lnk"."movie_id" = "group.mymembers.movies"."id"\n'
-        sql += 'WHERE ("group.mymembers.movies"."title" IN (?))'
+        sql += 'WHERE ((("group.mymembers.movies"."title" IN (?))))'
         qs = Group.select(mymembers__movies__title__in=["NewStage"])
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 1)
@@ -222,89 +223,38 @@ class ComplexSelectionTestCase(unittest.TestCase):
         self.assertEqual(members[0].curename, "Fortune")
 
     def test_get_specified_fields_m2o_m2m(self):
-        sql  = 'SELECT "%(tbl)s"."curename", "mygroup".*, "subgroup".*, "movies".* FROM (\n'
-        sql += 'SELECT "member".* FROM "member"\n'
-        sql += ') AS "%(tbl)s"\n'
-        sql += 'INNER JOIN "group" AS "mygroup" ON "%(tbl)s"."mygroup_id" = "mygroup"."id"\n'
-        sql += 'INNER JOIN "group" AS "subgroup" ON "%(tbl)s"."subgroup_id" = "subgroup"."id"\n'
-        sql += 'INNER JOIN "membermovielink" AS "movies.lnk" ON "%(tbl)s"."id" = "movies.lnk"."member_id"\n'
-        sql += 'INNER JOIN "movie" AS "movies" ON "movies.lnk"."movie_id" = "movies"."id"'
-
+        sql  = 'SELECT "member"."curename", "member.mygroup".*, "member.subgroup".*, "member.movies".* FROM "member"\n'
+        sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
+        sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
+        sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"'
         qs = Member.all().fields("curename", "mygroup", "subgroup", "movies")
-        m = re.search(r"__t[0-9a-f]+_\d", qs.sql)
-        self.assertTrue(m)
-        self.assertEqual(qs.sql, sql % {"tbl":m.group(0)})
+        self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 2)
-
-        self.assertEqual(qs[0]["mygroup"], Group.get(1))
-        self.assertEqual(qs[0]["movies"], Movie.get(1))
-        self.assertEqual(qs[0]["curename"], u"Happy")
-        self.assertEqual(qs[0]["subgroup"], Group.get(2))
-
-        self.assertEqual(qs[1]["mygroup"], Group.get(3))
-        self.assertEqual(qs[1]["movies"], Movie.get(2))
-        self.assertEqual(qs[1]["curename"], u"Fortune")
-        self.assertEqual(qs[1]["subgroup"], Group.get(4))
-
-        # with tuple
-        qs_tpl = Member.all().fields_tuple("curename", "mygroup", "subgroup", "movies")
-        self.assertTrue(isinstance(qs_tpl[0], tuple))
-        self.assertEqual(qs_tpl[0], (u"Happy", Group.get(1), Group.get(2), Movie.get(1)))
-        self.assertEqual(qs_tpl[1], (u"Fortune", Group.get(3), Group.get(4), Movie.get(2)))
+        self.assertTrue(isinstance(qs[0], tuple))
+        self.assertEqual(qs[0], (u"Happy", Group.get(1), Group.get(2), Movie.get(1)))
+        self.assertEqual(qs[1], (u"Fortune", Group.get(3), Group.get(4), Movie.get(2)))
 
     def test_get_specified_fields_m2orev(self):
-        sql  = 'SELECT "%(tbl)s"."name", "groups".* FROM (\n'
-        sql += 'SELECT "series".* FROM "series"\n'
-        sql += ') AS "%(tbl)s"\n'
-        sql += 'INNER JOIN "group" AS "groups" ON "%(tbl)s"."id" = "groups"."series_id"'
-
-        qs = Series.all().fields("name", "groups")
-        m = re.search(r"__t[0-9a-f]+_\d", qs.sql)
-        self.assertTrue(m)
-        self.assertEqual(qs.sql, sql % {"tbl":m.group(0)})
-
-        self.assertEqual(qs[0]["name"], u"Smile Precure")
-        self.assertEqual(qs[0]["groups"], Group.get(1))
-
-        self.assertEqual(qs[1]["name"], u"Smile Precure")
-        self.assertEqual(qs[1]["groups"], Group.get(2))
-
-        self.assertEqual(qs[2]["name"], u"Happiness Charge Precure")
-        self.assertEqual(qs[2]["groups"], Group.get(3))
-
-        self.assertEqual(qs[3]["name"], u"Happiness Charge Precure")
-        self.assertEqual(qs[3]["groups"], Group.get(4))
-
-        # with tuple
-        qs_tpl = Series.all().fields_tuple("name", "groups")
-        self.assertTrue(isinstance(qs_tpl[0], tuple))
-        self.assertEqual(qs_tpl[0], (u"Smile Precure", Group.get(1)))
-        self.assertEqual(qs_tpl[1], (u"Smile Precure", Group.get(2)))
-        self.assertEqual(qs_tpl[2], (u"Happiness Charge Precure", Group.get(3)))
-        self.assertEqual(qs_tpl[3], (u"Happiness Charge Precure", Group.get(4)))
+        sql  = 'SELECT "series"."name", "series.groups".* FROM "series"\n'
+        sql += 'INNER JOIN "group" AS "series.groups" ON "series"."id" = "series.groups"."series_id"\n'
+        sql += 'ORDER BY "series.groups"."id"'
+        qs = Series.all().fields("name", "groups").order_by("groups")
+        self.assertEqual(qs.sql, sql)
+        self.assertTrue(isinstance(qs[0], tuple))
+        self.assertEqual(qs[0], (u"Smile Precure", Group.get(1)))
+        self.assertEqual(qs[1], (u"Smile Precure", Group.get(2)))
+        self.assertEqual(qs[2], (u"Happiness Charge Precure", Group.get(3)))
+        self.assertEqual(qs[3], (u"Happiness Charge Precure", Group.get(4)))
 
     def test_get_specified_fields_m2mrev(self):
-        sql  = 'SELECT "%(tbl)s"."title", "members".* FROM (\n'
-        sql += 'SELECT "movie".* FROM "movie"\n'
-        sql += ') AS "%(tbl)s"\n'
-        sql += 'INNER JOIN "membermovielink" AS "members.lnk" ON "%(tbl)s"."id" = "members.lnk"."movie_id"\n'
-        sql += 'INNER JOIN "member" AS "members" ON "members.lnk"."member_id" = "members"."id"'
-
+        sql  = 'SELECT "movie"."title", "movie.members".* FROM "movie"\n'
+        sql += 'INNER JOIN "membermovielink" AS "movie.members.lnk" ON "movie"."id" = "movie.members.lnk"."movie_id"\n'
+        sql += 'INNER JOIN "member" AS "movie.members" ON "movie.members.lnk"."member_id" = "movie.members"."id"'
         qs = Movie.all().fields("title", "members")
-        m = re.search(r"__t[0-9a-f]+_\d", qs.sql)
-        self.assertTrue(m)
-        self.assertEqual(qs.sql, sql % {"tbl":m.group(0)})
-
-        self.assertEqual(qs[0]["title"], u"NewStage")
-        self.assertEqual(qs[0]["members"], Member.get(1))
-        self.assertEqual(qs[1]["title"], u"NewStage2")
-        self.assertEqual(qs[1]["members"], Member.get(2))
-
-        # with tuple
-        qs_tpl = Movie.all().fields_tuple("title", "members")
-        self.assertTrue(isinstance(qs_tpl[0], tuple))
-        self.assertEqual(qs_tpl[0], (u"NewStage", Member.get(1)))
-        self.assertEqual(qs_tpl[1], (u"NewStage2", Member.get(2)))
+        self.assertEqual(qs.sql, sql)
+        self.assertEqual(qs[0], (u"NewStage", Member.get(1)))
+        self.assertEqual(qs[1], (u"NewStage2", Member.get(2)))
 
     def test_get_single_field_m2o_m2m(self):
         qs = Member.all().field("curename")
