@@ -1335,6 +1335,7 @@ class Model(object):
         self._orig_pk = self.pk # Preserve original primary key value for modifing key value
 
     def __eq__(self, other): return self.pk == other.pk
+    def __ne__(self, other): return self.pk != other.pk
 
     def get_key_value(self):
         """Getting value of primary key field"""
