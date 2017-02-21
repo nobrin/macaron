@@ -37,8 +37,10 @@ Macaron aims to make the use of database easy for small applications.
 * There are no dependencies except Python Standard Library.
 * Many-To-One relationships are supported.
 * Many-To-Many relationships are supported (New in 0.4).
+* REGEXP, IN, BETWEEN operators are supported (New in 0.4).
+* Q object for more complex queries (New in 0.4).
 * Pre-defined and user-defined validator can be used.
-* Plugin for Bottle which is a micro-sized web framework is included.
+* Plug-in for Bottle which is a micro-sized web framework is included.
 * Module consists of only single file.
 
 
@@ -80,4 +82,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

@@ -12,25 +12,7 @@ Here is a tutorial for *Macaron*. *Macaron* is a simplified ORM, so there are fe
 Definition of models
 ====================
 
-*Macaron* needs tables in SQLite database. To make it simple, *Macaron* does not provides methods for creating tables. In this section, table creation SQL and definition is below.
-
-SQL::
-
-    CREATE TABLE team (
-        id      INTEGER PRIMARY KEY,
-        name    TEXT
-    );
-    
-    CREATE TABLE member (
-        id          INTEGER PRIMARY KEY,
-        table_id    INTEGER REFERENCES team (id),
-        first_name  TEXT,
-        last_name   TEXT,
-        part        TEXT,
-        age         INT
-    );
-
-You need creating tables into *members.db* file with the SQL.
+First of all, you need tables in SQLite database. The tables will be created with a function of ``macaron.create_table()``. Before using it, you need writing some codes below.
 
 Model definition in Python code::
 
@@ -38,6 +20,8 @@ Model definition in Python code::
     
     class Team(macaron.Model):
         """Definition of Team table"""
+        name = macaron.CharField(max_length=50)
+        
         def __str__(self):
             return "<Team '%s'>" % self.name
     
@@ -46,13 +30,16 @@ Model definition in Python code::
         team is a class property and accessor for parent 'Team' object.
         Macaron detects some field types, but if you want to validate, defining criteria.
         """
-        team = macaron.ManyToOne("team_id", Team, "id", "members")
+        first_name = macaron.CharField(max_length=20)
+        last_name = macaron.CharField(max_length=20)
+        part = macaron.CharField(max_length=10)
+        team = macaron.ManyToOne(Team, related_name="members")
         age = macaron.IntegerField(min=15, max=18)
 
         def __str__(self):
             return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
 
-In these case, Team and Member classes correspond to 'team' and 'member' tables, respectively. So *Macaron* uses uncapitalized class names as table name. If not so, define ``_table_name`` for corresponding table name as a class property. Like this,
+In these case, Team and Member classes correspond to 'team' and 'member' tables, respectively. So *Macaron* uses uncapitalized class names as table name. If you want to use alternative names for them, specify ``_table_name`` for corresponding table name as a class property. Like this,
 
 ::
 
@@ -62,10 +49,10 @@ In these case, Team and Member classes correspond to 'team' and 'member' tables,
 The class property of ``_table_name`` is removed when initializing in Meta-class ModelMeta.
 
 
-Creating new records
-====================
+Initialization and creating new records
+=======================================
 
-Okay, we have created some tables and defined model classes. Team class is the model related to team table in database and Member class is to member. After that, we will create a new team called "Houkago Tea Time" and append starting members.
+Okay, we have obtained some defined models for tables. Team class is the model related to team table in database and Member class is to member. After that, we will create a new team called "Houkago Tea Time" and append starting members.
 
 ::
 
@@ -76,6 +63,10 @@ Okay, we have created some tables and defined model classes. Team class is the m
     # connect to 'members.db' SQLite database file.
     macaron.macaronage("members.db")
     
+    # Create new tables which correspond to the models.
+    macaron.create_table(Team)
+    macaron.create_table(Member)
+
     # Create a new team named 'Houkago Tea Time'.
     # A new team is created with Model.create(). The create() is a class method and is called
     # with key word arguments which consist of field name and value pairs. It returns created Team
@@ -97,8 +88,8 @@ Okay, we have created some tables and defined model classes. Team class is the m
 Where the *members* propery is defined? The property is defined automatically in Member class definition. The *team* property of Member is set as an instance of *ManyToOne* and it works as accessor to many to one relationship. The ManyToOne add a property for accessing reverse relationship to Team class. In this case, the property is named *members*.
 
 
-Fetching records and updating
-=============================
+Basic fetching records and updating
+===================================
 
 Now, we have a small database *members.db*. In this section, we try fetching records.
 
@@ -128,9 +119,9 @@ Now, we have a small database *members.db*. In this section, we try fetching rec
     
     # Of course, you can SELECT with WHERE clause.
     # The get() returns a single object and select() returns generator.
-    mio = Member.get("last_name=?", ["Akiyama"])
+    mio = Member.get(last_name="Akiyama")
     
-    members = Member.select("team_id=?", [ourband.pk])
+    members = Member.select(team=ourband)
     # [<Member object 1>, <Member object 2>]
     
     # Oops, Mio desides to sing the song.
@@ -161,3 +152,45 @@ These are how to use aggregation methods. Aggregation is conducted with aggregat
     sum_of_ages = Team.get(1).members.all().aggregate(macaron.Sum("age"))
     
     # And you can use: average, max, and min are Ave(), Max(), Min(), respectively.
+
+
+The previous way can be used, but it is not recommended.
+
+Table creation SQL and definition is below.
+
+SQL::
+
+    CREATE TABLE team (
+        id      INTEGER PRIMARY KEY,
+        name    TEXT
+    );
+    
+    CREATE TABLE member (
+        id          INTEGER PRIMARY KEY,
+        table_id    INTEGER REFERENCES team (id),
+        first_name  TEXT,
+        last_name   TEXT,
+        part        TEXT,
+        age         INT
+    );
+
+You need creating tables into *members.db* file with the SQL. If you have created in *members.db*, you can use the *member* model below.
+
+::
+
+    class Member(macaron.Model):
+        def __str__(self):
+            return "<Team '%s'>" % self.name
+    
+    class Member(macaron.Model):
+        """Definition of Member table
+        team is a class property and accessor for parent 'Team' object.
+        Macaron detects some field types, but if you want to validate, defining criteria.
+        """
+        team = macaron.ManyToOne("team_id", Team, "id", "members")
+        age = macaron.IntegerField(min=15, max=18)
+
+        def __str__(self):
+            return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
+
+However, this way may be obsoleted.

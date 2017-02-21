@@ -4,7 +4,10 @@ import re
 from datetime import datetime
 import macaron
 
-class Series(macaron.Model): name = macaron.CharField(max_length=30)
+class Series(macaron.Model):
+    name = macaron.CharField(max_length=30)
+    no = macaron.IntegerField()
+
 class Movie(macaron.Model): title = macaron.CharField(max_length=20)
 
 class Group(macaron.Model):
@@ -31,7 +34,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         macaron.create_table(Member)
         macaron.create_table(SubTitle)
 
-        series1 = Series.create(name="Smile Precure")
+        series1 = Series.create(name="Smile Precure", no=9)
         group1 = Group.create(name="Smile", series=series1)
         group2 = Group.create(name="Pink", series=series1)
         member1 = Member.create(curename="Happy", mygroup=group1, subgroup=group2, joined=datetime(2012, 2, 6))
@@ -39,7 +42,7 @@ class ComplexSelectionTestCase(unittest.TestCase):
         subtitle = SubTitle.create(title="Mirai no tomodachi", movie=movie1)
         member1.movies.append(movie1)
 
-        series2 = Series.create(name="Happiness Charge Precure")
+        series2 = Series.create(name="Happiness Charge Precure", no=10)
         group3 = Group.create(name="Happiness Charge", series=series2)
         group4 = Group.create(name="Purple", series=series2)
         member2 = Member.create(curename="Fortune", mygroup=group3, subgroup=group4, joined=datetime(2014, 2, 9))
