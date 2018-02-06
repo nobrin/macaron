@@ -8,11 +8,16 @@
 Macaron: Python O/R Mapper
 ==========================
 
-Documentation in Japanese is available at `BioKids <http://biokids.org/?Macaron>`_.
+Documentation in Japanese is available at
+`BioKids <http://biokids.org/?Macaron>`_.
 
-*Macaron* is a small and simple object-relational mapper (ORM) for SQLite_. It is distributed as a single file module which has no dependencies other than the `Python Standard Library <http://docs.python.org/library/>`_.
+*Macaron* is a small and simple object-relational mapper (ORM) for SQLite_.
+It is distributed as a single file module which has no dependencies
+other than the `Python Standard Library <http://docs.python.org/library/>`_.
 
-*Macaron* provides easy access methods to SQLite database. And it supports Bottle_ web framework through plugin mechanism. See :doc:`webapp`.
+*Macaron* provides easy access methods to SQLite database.
+And it supports Bottle_ web framework through plugin mechanism.
+See :doc:`webapp`.
 
 Example::
 

@@ -9,9 +9,14 @@
 Overview
 ========
 
-*Macaron* is a small and simple object-relational mapper (ORM) for SQLite_ and Python_. It is distributed as a single file module which has no dependencies other than the `Python Standard Library <http://docs.python.org/library/>`_.
+*Macaron* is a small and simple object-relational mapper (ORM)
+for  SQLite_ and Python_.
+It is distributed as a single file module which has no dependencies
+other than the
+`Python Standard Library <http://docs.python.org/library/>`_.
 
-*Macaron* provides provides easy access methods to SQLite database. And it supports Bottle_ web framework through plugin mechanism.
+*Macaron* provides provides easy access methods to SQLite database.
+And it supports Bottle_ web framework through plugin mechanism.
 
 Example::
 
@@ -28,7 +33,11 @@ Example::
     <Member 'Ritsu Tainaka : Dr'>
     <Member 'Mio Akiyama : Ba'>
 
-Macaron supports **Many-To-One** and **Many-To-Many** (new in 0.4.0-dev) relationships and reverse reference. To realize simple implementation, Macaron does not provide methods for creation of tables.
+Macaron supports **Many-To-One**
+and **Many-To-Many** (new in 0.4.0-dev)
+relationships and reverse reference.
+To realize simple implementation,
+Macaron does not provide methods for creation of tables.
 
 MacaronPlugin class for Bottle_ web framework is implemented.
 
@@ -64,7 +73,9 @@ Use for Web Applications
 Macaron in the Bottle
 ---------------------
 
-Bottle_ is a lightweight web framework for Python. Macaron can be used with Bottle through :class:`MacaronPlugin`, which is tested with Bottle 0.10.9.
+Bottle_ is a lightweight web framework for Python.
+Macaron can be used with Bottle through :class:`MacaronPlugin`,
+which is tested with Bottle 0.10.9.
 
 Example
 -------
@@ -90,4 +101,7 @@ Example
 Implementation
 --------------
 
-:class:`MacaronPlugin` create lazy connection. So the :class:`sqlite3.Connection` object is create at call Macaron methods. In case of no use the methods in :meth:`bottle.route`, any connection is created.
+:class:`MacaronPlugin` create lazy connection.
+So the :class:`sqlite3.Connection` object is create at call Macaron methods.
+In case of no use the methods in :meth:`bottle.route`,
+any connection is created.
