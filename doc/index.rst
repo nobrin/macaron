@@ -15,8 +15,8 @@ Documentation in Japanese is available at
 It is distributed as a single file module which has no dependencies
 other than the `Python Standard Library <http://docs.python.org/library/>`_.
 
-*Macaron* provides easy access methods to SQLite database.
-And it supports Bottle_ web framework through plugin mechanism.
+*Macaron* provides easy access methods to your SQLite database.
+And it supports the Bottle_ web framework through a plugin mechanism.
 See :doc:`webapp`.
 
 Example::
@@ -36,15 +36,15 @@ Example::
 Features
 ========
 
-Macaron aims to make the use of database easy for small applications.
+Macaron aims to make the use of databases easy for small applications.
 
 * An object-relational mapper (ORM) for SQLite.
 * There are no dependencies except Python Standard Library.
 * Many-To-One relationships are supported.
 * Many-To-Many relationships are supported (New in 0.4).
-* Pre-defined and user-defined validator can be used.
-* Plugin for Bottle which is a micro-sized web framework is included.
-* Module consists of only single file.
+* Pre-defined and user-defined validators can be used.
+* Includes a plugin for Bottle, which is a micro-sized web framework.
+* The module consists of only a single file.
 
 
 User's Guide
