@@ -21,6 +21,7 @@ And it supports Bottle_ web framework through plugin mechanism.
 Example::
 
     >>> import macaron
+    >>> # You need to have initialized your model before; see tutorial
     >>> macaron.macaronage(dbfile="members.db")
     >>> team = Team.create(name="Houkago Tea Time")
     >>> team.members.append(first_name="Ritsu", last_name="Tainaka", part="Dr")
