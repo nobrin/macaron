@@ -52,7 +52,7 @@ The corresponding model definition in Python code::
         Macaron detects some field types, but if you want to validate,
 	define those criteria.
         """
-        team = macaron.ManyToOne("team_id", Team, "id", "members")
+        team = macaron.ManyToOne(Team)
         age = macaron.IntegerField(min=15, max=18)
 
         def __str__(self):
