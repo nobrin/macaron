@@ -72,8 +72,8 @@ Field definition example is below.
         modified = macaron.TimestampAtSave()
         point = macaron.IntegerField(min=0, max=20)
 
-In the code, the :class:`NowAtCreate`,
-:class:`NowAtSave`, `IntegerField`, and `CharField`.
+In the code, the :class:`TimestampAtCreate`,
+:class:`TimestampAtSave`, `IntegerField`, and `CharField`.
 The former two classes differs from the latter two ones.
 Built-in classes are described below.
 
@@ -192,16 +192,16 @@ Field type classes are derived from base class :class:`Field`
 or subclasses of :class:`Field`.
 Now there are :class:`AtCreate` and :class:`AtSave` subclasses
 derived from :class:`Field`.
-For example, :class:`NowAtCreate` is a subclass of :class:`AtCreate`
+For example, :class:`TimestampAtCreate` is a subclass of :class:`AtCreate`
 (i.e. it is a subclass of :class:`Field`, too).
 
-For example, :class:`NowAtCreate` is implemented as below.::
+For example, :class:`TimestampAtCreate` is implemented as below.::
 
-    class NowAtCreate(AtCreate):
+    class TimestampAtCreate(AtCreate):
         def set(self, obj, value):
             return datetime.datetime.now()
 
-The :meth:`NowAtCreate.set` is called
+The :meth:`TimestampAtCreate.set` is called
 when object is inserted to database.
 In this way, implementing some callback methods
 and you can control behaviors of model objects.
