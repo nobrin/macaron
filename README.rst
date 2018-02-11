@@ -3,7 +3,7 @@
 .. _Bottle: http://bottlepy.org/
 
 =====================
- Macaron: O/R Mapper 
+ Macaron: O/R Mapper
 =====================
 
 Overview
@@ -15,7 +15,7 @@ It is distributed as a single file module which has no dependencies
 other than the
 `Python Standard Library <http://docs.python.org/library/>`_.
 
-*Macaron* provides provides easy access methods to SQLite database.
+*Macaron* provides easy access methods to SQLite database.
 And it supports Bottle_ web framework through plugin mechanism.
 
 Example::
@@ -85,17 +85,17 @@ Example
     #!/usr/bin/env python
     from bottle import *
     import macaron
-    
+
     install(macaron.MacaronPlugin("address.db"))
-    
+
     class Address(macaron.Model):
         _table_name = "address"
-    
+
     @route("/hello")
     def index():
         addr = Address.get(1)
         return "<h1>Hello!!</h1>My address is %s" % addr.address
-    
+
     run(host="localhost", port=8080)
 
 Implementation
