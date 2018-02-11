@@ -9,15 +9,14 @@
 Macaron in the Bottle
 =====================
 
-Macaron includes a plugin which simplifies
-the use of Bottle_ in your web applications.
-Bottle is a micro web framework for Python.
-To use it, simply call :func:`bottle.install`
-with a :class:`MacaronPlugin` instance.
+Macaron includes a plugin which simplifies the use of Bottle_ in your web
+applications. Bottle is a micro web framework for Python.
+To use it, simply call :func:`bottle.install` with a :class:`MacaronPlugin`
+instance.
 After that you use it the way you've always done it.
 
-Each module of Macaron (ORM) and Bottle (Routing/Templates)
-consists of only a single file.
+Each module of Macaron (ORM) and Bottle (Routing/Templates) consists of only a
+single file.
 So you can use a full-stack web framework by using only two files.
 
 

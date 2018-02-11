@@ -41,8 +41,7 @@ The above ``Member`` model corresponds to a database table like this:
         joined      TIMESTAMP
     );
 
-In order to keep Macaron simple,
-it does not contain functionality for
+In order to keep Macaron simple, it does not contain functionality for
 creating tables.
 But attributes of the model are inferred from the table definition.
 In general, you don't need to modify the class definition of the model
@@ -156,8 +155,7 @@ These Team and Member classes are defined as database tables in SQL.
        and '_id', i.e. 'team_id'.
      - The ``key`` is specified as ``Team``'s primary key name, i.e. 'id'.
 
-In this example, a Many-to-One relationship
-is defined as above.
+In this example, a Many-to-One relationship is defined as above.
 It represents that a ``Member`` has a ``Team``
 -- means a ``Member`` belongs to a ``Team``
 but each ``Member`` only belongs to one ``Team``.
@@ -184,8 +182,7 @@ Customizing fields and behaviors of models
 
 Macaron's model class is designed to be flexible.
 You can customize field types and actions to perform
-before and after
-``INSERT`` and ``UPDATE``.
+before and after ``INSERT`` and ``UPDATE``.
 
 Field types
 -----------

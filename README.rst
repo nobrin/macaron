@@ -34,11 +34,10 @@ Example::
     <Member 'Ritsu Tainaka : Dr'>
     <Member 'Mio Akiyama : Ba'>
 
-Macaron supports **Many-To-One**
-and **Many-To-Many** (new in 0.4.0-dev)
+Macaron supports **Many-To-One** and **Many-To-Many** (new in 0.4.0-dev)
 relationships and reverse reference.
-To realize simple implementation,
-Macaron does not provide methods for creation of tables.
+To realize simple implementation, Macaron does not provide methods for creation
+of tables.
 
 MacaronPlugin class for Bottle_ web framework is implemented.
 

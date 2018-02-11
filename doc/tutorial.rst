@@ -7,8 +7,7 @@
 ==========
 
 Here is a tutorial for *Macaron*.
-*Macaron* is a simplified ORM,
-but there are a few things you need to learn.
+*Macaron* is a simplified ORM, but there are a few things you need to learn.
 
 
 Definition of models
@@ -58,8 +57,8 @@ The corresponding model definition in Python code::
         def __str__(self):
             return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
 
-In these cases, Team and Member classes
-correspond to 'team' and 'member' tables, respectively.
+In these cases, Team and Member classes correspond to 'team' and 'member'
+tables, respectively.
 So *Macaron* uses the uncapitalized class names as the table name.
 To override this, define ``_table_name`` with the corresponding table name
 as a class property.
@@ -77,14 +76,11 @@ in the metaclass ModelMeta.
 Creating new records
 ====================
 
-Okay, we have created some tables
-and defined model classes.
-The Team class is the model related
-to the ``team`` table in the database,
-and simiarly, the Member class corresponds to
-the ``member`` table.
-Now, we can create a new team called "Houkago Tea Time"
-and populate it with some members.
+Okay, we have created some tables and defined model classes.
+The Team class is the model related to the ``team`` table in the database,
+and simiarly, the Member class corresponds to the ``member`` table.
+Now, we can create a new team called "Houkago Tea Time" and populate it with
+some members.
 
 ::
 
@@ -182,11 +178,11 @@ Aggregation
 ===========
 
 Aggregation is conducted with the ``aggregate()`` method.
-The aggregate method takes single argument
-which is a member of a subclass of AggregateFunction.
+The aggregate method takes single argument which is a member of a subclass of
+AggregateFunction.
 Currently, there are ``Sum()``, ``Ave()``, ``Max()``, and ``Min()``.
-The constructor of the AggregateFunction class
-takes a column name as its argument.
+The constructor of the AggregateFunction class takes a column name as its
+argument.
 
 ::
 
