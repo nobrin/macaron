@@ -6,13 +6,17 @@
  Tutorial
 ==========
 
-Here is a tutorial for *Macaron*. *Macaron* is a simplified ORM, so there are few things you need to learn.
+Here is a tutorial for *Macaron*.
+*Macaron* is a simplified ORM, but there are a few things you need to learn.
 
 
 Definition of models
 ====================
 
-*Macaron* needs tables in SQLite database. To make it simple, *Macaron* does not provides methods for creating tables. In this section, table creation SQL and definition is below.
+*Macaron* needs tables in an SQLite database.
+To make it simple,
+*Macaron* does not provides methods for creating tables.
+In this section, table creation SQL and definition is explained.
 
 SQL::
 
@@ -30,9 +34,9 @@ SQL::
         age         INT
     );
 
-You need creating tables into *members.db* file with the SQL.
+You need to create tables into the *members.db* file with SQL.
 
-Model definition in Python code::
+The corresponding model definition in Python code::
 
     import macaron
     
@@ -44,63 +48,86 @@ Model definition in Python code::
     class Member(macaron.Model):
         """Definition of Member table
         team is a class property and accessor for parent 'Team' object.
-        Macaron detects some field types, but if you want to validate, defining criteria.
+        Macaron detects some field types, but if you want to validate,
+	define those criteria.
         """
-        team = macaron.ManyToOne("team_id", Team, "id", "members")
+        team = macaron.ManyToOne(Team)
         age = macaron.IntegerField(min=15, max=18)
 
         def __str__(self):
             return "<Member '%s %s : %s'>" % (self.first_name, self.last_name, self.part)
 
-In these case, Team and Member classes correspond to 'team' and 'member' tables, respectively. So *Macaron* uses uncapitalized class names as table name. If not so, define ``_table_name`` for corresponding table name as a class property. Like this,
+In these cases, Team and Member classes correspond to 'team' and 'member'
+tables, respectively.
+So *Macaron* uses the uncapitalized class names as the table name.
+To override this, define ``_table_name`` with the corresponding table name
+as a class property.
+Like this,
 
 ::
 
     class MyTest(macaron.Model):
         _table_name = "my_profile"
 
-The class property of ``_table_name`` is removed when initializing in Meta-class ModelMeta.
+The class property of ``_table_name`` is removed when initializing
+in the metaclass ModelMeta.
 
 
 Creating new records
 ====================
 
-Okay, we have created some tables and defined model classes. Team class is the model related to team table in database and Member class is to member. After that, we will create a new team called "Houkago Tea Time" and append starting members.
+Okay, we have created some tables and defined model classes.
+The Team class is the model related to the ``team`` table in the database,
+and simiarly, the Member class corresponds to the ``member`` table.
+Now, we can create a new team called "Houkago Tea Time" and populate it with
+some members.
 
 ::
 
     import macaron
     
     # A macaron needs 'macaronage' process.
-    # First of all, call macaron.macaronage() to initialize macaron. This method
-    # connect to 'members.db' SQLite database file.
+    # First of all, call macaron.macaronage() to initialize macaron.
+    # This method connects to the 'members.db' SQLite database file.
     macaron.macaronage("members.db")
     
     # Create a new team named 'Houkago Tea Time'.
-    # A new team is created with Model.create(). The create() is a class method and is called
-    # with key word arguments which consist of field name and value pairs. It returns created Team
-    # object.
+    # A new team is created with Model.create().
+    # The create() is a class method and is called with keyword arguments
+    # which consist of field name and value pairs.
+    # It returns the created Team object.
     new_team = Team.create(name="Houkago Tea Time")
     
     # Append new members to the team.
-    # The Team object is into a variable named 'new_team', you will call new_team.members.append().
-    # 'new_team.members' is an accessor for Members. The append() can be used with key word
-    # arguments like create() method and returns new created Member object.
+    # The Team object is held in a variable named 'new_team',
+    # and we can now call new_team.members.append().
+    # 'new_team.members' is an accessor for Members.
+    # append() can be used with key word arguments like the create() method
+    # and returns the newly created Member object.
     member1 = new_team.members.append(first_name="Ritsu", last_name="Tainaka", part="Dr")
     member2 = new_team.members.append(first_name="Mio", last_name="Akiyama", part="Ba")
     
     # Yeah, all tasks has been done. Let's bake the macaron.
-    # At last, we have created a team with initial members and should commit it. Call
-    # macaron.bake() which is a very wrapper to call sqlite3.Connection#commit().
+    # At last, we have created a team with initial members
+    # and should commit it.
+    # Call macaron.bake() which is a very simple wrapper
+    # to call sqlite3.Connection#commit().
     macaron.bake()
 
-Where the *members* propery is defined? The property is defined automatically in Member class definition. The *team* property of Member is set as an instance of *ManyToOne* and it works as accessor to many to one relationship. The ManyToOne add a property for accessing reverse relationship to Team class. In this case, the property is named *members*.
+Where is the *members* propery defined?
+The property is defined automatically in the Member class definition.
+The *team* property of Member is set as an instance of *ManyToOne*
+and it works as accessor to a many-to-one relationship.
+The ManyToOne adds a property for accessing
+the reverse relationship to the Team class.
+In this case, the property is named *members*.
 
 
 Fetching records and updating
 =============================
 
-Now, we have a small database *members.db*. In this section, we try fetching records.
+Now, we have a small database *members.db*.
+In this section, we try fetching records.
 
 ::
 
@@ -150,7 +177,12 @@ Now, we have a small database *members.db*. In this section, we try fetching rec
 Aggregation
 ===========
 
-These are how to use aggregation methods. Aggregation is conducted with aggregate() method. The aggregate method takes single argument which is sub class of AggregateFunction. Currently, there are Sum(), Ave(), Max(), and Min(). The constructor of AggregateFunction class takes column name as argument.
+Aggregation is conducted with the ``aggregate()`` method.
+The aggregate method takes single argument which is a member of a subclass of
+AggregateFunction.
+Currently, there are ``Sum()``, ``Ave()``, ``Max()``, and ``Min()``.
+The constructor of the AggregateFunction class takes a column name as its
+argument.
 
 ::
 
