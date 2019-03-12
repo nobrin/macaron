@@ -1141,6 +1141,8 @@ class ModelMeta(type):
 #            if not _m: _callbacks_when_connect.append(lambda: cls._meta)
 #            else: raise UserWarning("PRAGMA will brake the transaction.")
 
+# This hack is use metaclass in both py2 and py3.
+# - ref. https://qiita.com/podhmo/items/c601050b20f70d27aa07
 HasModelMeta = ModelMeta("Model", (object,), {"__doc__": ModelMeta.__doc__})
 
 class Model(HasModelMeta):
