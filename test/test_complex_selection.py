@@ -154,8 +154,8 @@ class ComplexSelectionTestCase(unittest.TestCase):
         for rec in qs: self.assertEqual(rec.curename, "Happy")
 
         sql  = 'SELECT "member".* FROM "member"\n'
-        sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
         sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
+        sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
         sql += 'WHERE ((("member.mygroup"."name" = ? AND "member.subgroup"."name" = ?)))'
         qs = Member.select(mygroup__name="Smile", subgroup__name="Pink")
         self.assertEqual(qs.sql, sql)
@@ -235,10 +235,10 @@ class ComplexSelectionTestCase(unittest.TestCase):
 
     def test_get_specified_fields_m2o_m2m(self):
         sql  = 'SELECT "member"."curename", "member.mygroup".*, "member.subgroup".*, "member.movies".* FROM "member"\n'
-        sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"\n'
-        sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
         sql += 'INNER JOIN "membermovielink" AS "member.movies.lnk" ON "member"."id" = "member.movies.lnk"."member_id"\n'
-        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"'
+        sql += 'INNER JOIN "movie" AS "member.movies" ON "member.movies.lnk"."movie_id" = "member.movies"."id"\n'
+        sql += 'INNER JOIN "group" AS "member.mygroup" ON "member"."mygroup_id" = "member.mygroup"."id"\n'
+        sql += 'INNER JOIN "group" AS "member.subgroup" ON "member"."subgroup_id" = "member.subgroup"."id"'
         qs = Member.all().fields("curename", "mygroup", "subgroup", "movies")
         self.assertEqual(qs.sql, sql)
         self.assertEqual(qs.count(), 2)

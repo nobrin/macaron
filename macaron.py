@@ -946,7 +946,7 @@ class QuerySet(object):
             sqls = ['SELECT%s %s FROM "%s"' % (distinct, ", ".join(flds), tbl)]
 
         # JOIN clause
-        keys = sorted(self.joins.keys(), key=lambda name: len(name.split(".")))
+        keys = sorted(sorted(self.joins.keys()), key=lambda name: len(name.split(".")))
         for k in keys: sqls += self.joins[k]
 
         # WHERE clause
