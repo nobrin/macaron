@@ -34,6 +34,8 @@ import logging
 import collections
 from datetime import datetime
 
+PY3K = sys.version_info.major >= 3
+
 # --- Exceptions
 class ObjectDoesNotExist(Exception): pass
 class ValidationError(Exception): pass      # TODO: fix behavior
@@ -102,7 +104,7 @@ def macaronage(dbfile=":memory:", lazy=False, autocommit=False, logger=None, his
     if regexp is None:
         def _regexp(expr, item):
             try: return re.search(expr, item) is not None
-            except Exception, e: raise
+            except Exception as e: raise
     elif callable(regexp):
         _regexp = regexp
     else:
@@ -143,14 +145,14 @@ def create_table(cls, cascade=False, link_tables=True):
     cdic = cls.__dict__ # for direct access to property objects
     field_order = {}
     has_primary_key = False
-    for k, fld in filter(lambda (k, v): isinstance(v, Field), cdic.items()):
+    for k, fld in filter(lambda x: isinstance(x[1], Field), cdic.items()):
         if not fld.is_user_defined: continue
         if isinstance(fld, ManyToOne):
             meta = None
             # The reference table exists or not.
             while not meta:
                 try: meta = fld.ref._meta; break
-                except fld.ref.TableDoesNotExist, e:
+                except fld.ref.TableDoesNotExist as e:
                     if not cascade: raise e
                     else: create_table(fld.ref)
             # Generate REFERENCES clause
@@ -186,7 +188,9 @@ def create_table(cls, cascade=False, link_tables=True):
 
 def create_link_tables(cls):
     cdic = cls.__dict__ # for direct access to property objects
-    for k, fld in filter(lambda (k, v): isinstance(v, ManyToMany), cdic.items()):
+    # Avoid for RuntimeError: dictionary changed size during iteration,
+    # convert cdic.items() to list
+    for k, fld in filter(lambda x: isinstance(x[1], ManyToMany), list(cdic.items())):
         create_table(fld.lnk)
 
 # --- Classes
@@ -246,7 +250,7 @@ def _create_wrapper(logger):
             return self.table_info[table_name][:]
 
         def get_table_info(self, table_name):
-            if self.table_info.has_key(table_name): return self.table_info[table_name][:]
+            if table_name in self.table_info: return self.table_info[table_name][:]
             return self.cache_table_info(table_name)
 
     return ConnectionWrapper
@@ -336,11 +340,13 @@ class FieldInfoCollection(list):
         self._field_dict[fld.name] = fld
 
     def __getitem__(self, name):
-        if isinstance(name, (int, long)):
+        if isinstance(name, int):
             return super(FieldInfoCollection, self).__getitem__(name)
         return self._field_dict[name]
 
     def keys(self): return self._field_dict.keys()
+
+    def __in__(self, name): return name in self._field_dict
 
 class ClassProperty(property):
     """Using class property wrapper class"""
@@ -351,9 +357,9 @@ class FieldFactory(object):
     def create(row, cls):
         rec = dict(zip(["cid", "name", "type", "not_null", "default", "is_primary_key"], row))
         cdict = cls.__dict__
-        if cdict.has_key(rec["name"]) and not isinstance(cdict[rec["name"]], Field):
+        if rec["name"] in cdict and not isinstance(cdict[rec["name"]], Field):
             raise TypeError("Fields must be Field objects.")
-        if cdict.has_key(rec["name"]) and cdict[rec["name"]].is_user_defined:
+        if rec["name"] in cdict and cdict[rec["name"]].is_user_defined:
             fld = cls.__dict__[rec["name"]]
         else:
             fldkw = {"null": not rec["not_null"], "primary_key": rec["is_primary_key"]}
@@ -412,7 +418,7 @@ class TableMetaInfo(object):
             if isinstance(fld, ManyToOne):
                 # In case of ManyToOne field, the actual field of the one is set into the class.
                 # ex. author ManyToOne field corresponds to author_id IntegerField.
-                if not cls.__dict__.has_key(fld.fkey):
+                if fld.fkey not in cls.__dict__:
                     reffld = None
                     for f in filter(lambda v:isinstance(v, Field), fld.ref.__dict__.values()):
                         if f.is_primary_key: reffld = f
@@ -476,7 +482,7 @@ class Field(property):
         if self.unique: a.append("UNIQUE")
         if self.default is not None:
             try: self.validate(None, self.default)
-            except ValidationError, e:
+            except ValidationError as e:
                 raise DefaultValueValidationError("Invalid default value: %s" % e)
             if self.VALUE_TYPE == "CHAR": a.append("DEFAULT '%s'" % str(self.default).replace("'", "''"))
             elif self.VALUE_TYPE == "NUM": a.append("DEFAULT %s" % self.default)
@@ -748,7 +754,7 @@ class _ManyToManyBase(property):
         self.name = name
 
     def _get_link_class(self):
-        if isinstance(self._lnk, basestring):
+        if (PY3K and isinstance(self._lnk, (str, bytes))) or (not PY3K and isinstance(self._lnk, basestring)):
             self._lnk = getattr(sys.modules[self.cls.__module__], self._lnk)
         return self._lnk
     def _set_link_class(self, value): self._lnk = value
@@ -898,6 +904,7 @@ class QuerySet(object):
         if not row: raise StopIteration()
         self._cache.append(self.factory(self.cur, row))
         return self._cache[-1]
+    __next__ = next
 
     def get(self, *args, **kw):
         if len(args) == 1:
@@ -1105,7 +1112,7 @@ class ModelMeta(type):
 
     def __init__(cls, name, bases, dict):
         # Process suspended initializing
-        if ModelMeta.suspended.has_key(cls.__name__):
+        if cls.__name__ in ModelMeta.suspended:
             p = ModelMeta.suspended.pop(cls.__name__)
             p[0].ref = cls
             p[0]._called_in_modelmeta_init(p[1], p[2])
@@ -1134,9 +1141,11 @@ class ModelMeta(type):
 #            if not _m: _callbacks_when_connect.append(lambda: cls._meta)
 #            else: raise UserWarning("PRAGMA will brake the transaction.")
 
-class Model(object):
+HasModelMeta = ModelMeta("Model", (object,), {"__doc__": ModelMeta.__doc__})
+
+class Model(HasModelMeta):
     """Base model class. Models must inherit this class."""
-    __metaclass__ = ModelMeta
+#    __metaclass__ = ModelMeta
     _table_name = None  #: Database table name (the property will be deleted in ModelMeta)
     _meta = None        #: accessor for TableMetaInfo (set in ModelMeta)
                         #  Accessing to _meta triggers initializing TableMetaInfo and Class attributes.
@@ -1285,7 +1294,7 @@ class OpConverter(object):
     def get_clause(self, op, fld, value):
         if op:
             if hasattr(self, "_OP_%s" % op): sqltmpl, value = getattr(self, "_OP_%s" % op)(value)
-            elif self.CONV.has_key(op): sqltmpl, value = "%%s %s ?" % self.CONV[op], value
+            elif op in self.CONV: sqltmpl, value = "%%s %s ?" % self.CONV[op], value
             else: raise ValueError("Operator '%s' is not supported." % op)
         else:
             sqltmpl, value = self._convert(fld, value)
@@ -1333,7 +1342,7 @@ class MacaronPlugin(object):
             try:
                 ret_value = callback(*args, **kwargs)
                 if self.commit_on_success: bake()   # commit
-            except sqlite3.IntegrityError, e:
+            except sqlite3.IntegrityError as e:
                 rollback()
                 traceback = None
                 if bottle.DEBUG:
@@ -1341,7 +1350,7 @@ class MacaronPlugin(object):
                     sqllog = "[Macaron]LastSQL: %s\n[Macaron]Params : %s\n" % traceback
                     bottle.request.environ["wsgi.errors"].write(sqllog)
                 raise bottle.HTTPError(500, "Database Error", e, tb.format_exc())
-            except bottle.HTTPResponse, e:
+            except bottle.HTTPResponse as e:
                 if self.commit_on_success: bake()   # commit on HTTP response (ex. redirect())
                 raise e
             except:
