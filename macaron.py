@@ -1273,7 +1273,9 @@ class Model(HasModelMeta):
         return "<%s object %s>" % (self.__class__.__name__, self.pk)
 
     def __unicode__(self): return u"<%s object %s>" % (self.__class__.__name__, self.pk)
-    def __str__(self): return unicode(self).encode("utf-8")
+    def __str__(self):
+        if PY3K: return "<%s object %s>" % (self.__class__.__name__, self.pk)
+        return unicode(self).encode("utf-8")
 
 # --- Aggregation functions
 class AggregateFunction(object):
