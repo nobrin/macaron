@@ -145,7 +145,9 @@ def create_table(cls, cascade=False, link_tables=True):
     cdic = cls.__dict__ # for direct access to property objects
     field_order = {}
     has_primary_key = False
-    for k, fld in filter(lambda x: isinstance(x[1], Field), cdic.items()):
+    # 2021-05-29: ManyToOne to self object causes 'RuntimeError: dictionary changed size during iteration'
+    # To avoid it, list the iteration before loop.
+    for k, fld in list(filter(lambda x: isinstance(x[1], Field), cdic.items())):
         if not fld.is_user_defined: continue
         if isinstance(fld, ManyToOne):
             meta = None
@@ -1112,10 +1114,13 @@ class ModelMeta(type):
 
     def __init__(cls, name, bases, dict):
         # Process suspended initializing
+        # 2021-05-29: This process shoud be conducted after next block
+        """
         if cls.__name__ in ModelMeta.suspended:
             p = ModelMeta.suspended.pop(cls.__name__)
             p[0].ref = cls
             p[0]._called_in_modelmeta_init(p[1], p[2])
+        """
 
         has_primary_key = False
         for k in dict.keys():
@@ -1123,6 +1128,13 @@ class ModelMeta(type):
             if isinstance(dict[k], ManyToOne): dict[k]._called_in_modelmeta_init(cls, k)
             if isinstance(dict[k], Field): dict[k].is_user_defined = True
             if isinstance(dict[k], Field) and dict[k].is_primary_key: has_primary_key = True
+
+        # 2021-05-29
+        # move to here.
+        if cls.__name__ in ModelMeta.suspended:
+            p = ModelMeta.suspended.pop(cls.__name__)
+            p[0].ref = cls
+            p[0]._called_in_modelmeta_init(p[1], p[2])
 
         if not has_primary_key:
             fld = SerialKeyField() # for Serial key
